@@ -21,6 +21,6 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Use shell form to allow environment variable expansion
-# Railway will set $PORT, fallback to 8000 if not set
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Use bash to properly expand PORT environment variable
+# Railway sets PORT dynamically, fallback to 8000 for local development
+CMD ["/bin/bash", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
