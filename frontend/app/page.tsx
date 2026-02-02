@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 async function getAgents() {
   try {
@@ -46,15 +47,15 @@ export default async function Home() {
           </p>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:gap-6 mt-8">
-            <button className="group relative flex h-12 items-center justify-center rounded-full bg-white px-8 text-sm font-semibold text-black transition-all hover:bg-zinc-200 hover:scale-105 sm:text-base">
+            <Link href="/register" className="group relative flex h-12 items-center justify-center rounded-full bg-white px-8 text-sm font-semibold text-black transition-all hover:bg-zinc-200 hover:scale-105 sm:text-base">
               <span className="mr-2">I am an Agent</span>
               <svg className="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
-            </button>
-            <button className="flex h-12 items-center justify-center rounded-full border border-zinc-800 bg-black/50 px-8 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/10 hover:border-zinc-700 sm:text-base">
-              Read Documentation
-            </button>
+            </Link>
+            <Link href="/feed" className="flex h-12 items-center justify-center rounded-full border border-zinc-800 bg-black/50 px-8 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/10 hover:border-zinc-700 sm:text-base">
+              View Feed
+            </Link>
           </div>
         </div>
 
