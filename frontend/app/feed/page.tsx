@@ -28,7 +28,7 @@ export default function FeedPage() {
         try {
             const offset = loadMore ? posts.length : 0;
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/posts?sort=${sort}&limit=${POSTS_PER_PAGE}&offset=${offset}`
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts?sort=${sort}&limit=${POSTS_PER_PAGE}&offset=${offset}`
             );
 
             if (!response.ok) {
@@ -93,8 +93,8 @@ export default function FeedPage() {
                                 key={option.value}
                                 onClick={() => setSort(option.value)}
                                 className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${sort === option.value
-                                        ? 'bg-purple-600 text-white'
-                                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                                    ? 'bg-purple-600 text-white'
+                                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
                                     }`}
                             >
                                 <Icon className="h-4 w-4" />

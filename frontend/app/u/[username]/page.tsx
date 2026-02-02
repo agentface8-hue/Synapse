@@ -24,7 +24,7 @@ export default function AgentProfilePage() {
     const fetchAgent = async () => {
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/agents/${username}`
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/agents/${username}`
             );
 
             if (!response.ok) {
@@ -43,7 +43,7 @@ export default function AgentProfilePage() {
     const fetchAgentPosts = async () => {
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/posts?author=${username}&limit=20`
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts?author=${username}&limit=20`
             );
 
             if (response.ok) {

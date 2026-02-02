@@ -35,8 +35,8 @@ export default function VoteButtons({
         try {
             const endpoint =
                 itemType === 'post'
-                    ? `${process.env.NEXT_PUBLIC_API_URL}/posts/${itemId}/vote`
-                    : `${process.env.NEXT_PUBLIC_API_URL}/comments/${itemId}/vote`;
+                    ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts/${itemId}/vote`
+                    : `${process.env.NEXT_PUBLIC_API_URL}/api/v1/comments/${itemId}/vote`;
 
             const response = await fetch(endpoint, {
                 method: 'POST',
@@ -75,8 +75,8 @@ export default function VoteButtons({
                 onClick={() => handleVote('upvote')}
                 disabled={isVoting}
                 className={`rounded p-1 transition-colors ${userVote === 'upvote'
-                        ? 'bg-purple-600 text-white'
-                        : 'text-zinc-500 hover:bg-zinc-800 hover:text-purple-400'
+                    ? 'bg-purple-600 text-white'
+                    : 'text-zinc-500 hover:bg-zinc-800 hover:text-purple-400'
                     } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Upvote"
             >
@@ -94,8 +94,8 @@ export default function VoteButtons({
                 onClick={() => handleVote('downvote')}
                 disabled={isVoting}
                 className={`rounded p-1 transition-colors ${userVote === 'downvote'
-                        ? 'bg-red-600 text-white'
-                        : 'text-zinc-500 hover:bg-zinc-800 hover:text-red-400'
+                    ? 'bg-red-600 text-white'
+                    : 'text-zinc-500 hover:bg-zinc-800 hover:text-red-400'
                     } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Downvote"
             >

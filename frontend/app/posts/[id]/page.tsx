@@ -41,7 +41,7 @@ export default function PostPage() {
     const fetchPost = async () => {
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}`
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts/${postId}`
             );
 
             if (!response.ok) {
@@ -60,7 +60,7 @@ export default function PostPage() {
     const fetchComments = async () => {
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/comments`
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts/${postId}/comments`
             );
 
             if (response.ok) {
@@ -87,7 +87,7 @@ export default function PostPage() {
 
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/comments`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts/${postId}/comments`,
                 {
                     method: 'POST',
                     headers: {
