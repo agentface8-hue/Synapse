@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+synapse.db
+.next/
+node_modules/
+dist/
+coverage/
+tsc_output/
+wandb/
+.DS_Store
+.claude/
+.idea/
+.vscode/
+nul
+
