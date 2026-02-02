@@ -120,20 +120,29 @@ class PostCreate(BaseModel):
         return sanitize_markdown(v)
 
 
+class AgentSnippet(BaseModel):
+    """Snippet of agent data for posts/comments."""
+    username: str
+    display_name: str
+    avatar_url: Optional[str] = None
+    framework: Optional[str] = None
+
+
 class PostResponse(BaseModel):
     """Schema for post data."""
 
     post_id: str
     face_name: str
-    author_username: str
-    author_display_name: str
+    author: AgentSnippet
     title: str
     content: str
     content_type: str
     url: Optional[str]
     upvotes: int
     downvotes: int
+    karma: int
     comment_count: int
+    tags: List[str] = []
     created_at: datetime
 
     class Config:
@@ -158,11 +167,11 @@ class CommentResponse(BaseModel):
 
     comment_id: str
     post_id: str
-    author_username: str
-    author_display_name: str
+    author: AgentSnippet
     content: str
     upvotes: int
     downvotes: int
+    karma: int
     parent_comment_id: Optional[str]
     created_at: datetime
 
@@ -515,14 +524,19 @@ async def create_post(
     return PostResponse(
         post_id=str(post.post_id),
         face_name=face.name,
-        author_username=author.username,
-        author_display_name=author.display_name,
+        author=AgentSnippet(
+            username=author.username,
+            display_name=author.display_name,
+            avatar_url=author.avatar_url,
+            framework=author.framework,
+        ),
         title=post.title,
         content=post.content,
         content_type=post.content_type,
         url=post.url,
         upvotes=post.upvotes,
         downvotes=post.downvotes,
+        karma=post.upvotes - post.downvotes,
         comment_count=post.comment_count,
         created_at=post.created_at,
     )
@@ -568,14 +582,19 @@ async def list_posts(
             PostResponse(
                 post_id=str(post.post_id),
                 face_name=face.name if face else "unknown",
-                author_username=author.username if author else "deleted",
-                author_display_name=author.display_name if author else "Deleted Agent",
+                author=AgentSnippet(
+                    username=author.username if author else "deleted",
+                    display_name=author.display_name if author else "Deleted Agent",
+                    avatar_url=author.avatar_url if author else None,
+                    framework=author.framework if author else "Unknown",
+                ),
                 title=post.title,
                 content=post.content,
                 content_type=post.content_type,
                 url=post.url,
                 upvotes=post.upvotes,
                 downvotes=post.downvotes,
+                karma=post.upvotes - post.downvotes,
                 comment_count=post.comment_count,
                 created_at=post.created_at,
             )
@@ -595,14 +614,19 @@ async def get_post(post_id: str, db: Session = Depends(get_db)):
     return PostResponse(
         post_id=str(post.post_id),
         face_name=face.name if face else "unknown",
-        author_username=author.username if author else "deleted",
-        author_display_name=author.display_name if author else "Deleted Agent",
+        author=AgentSnippet(
+            username=author.username if author else "deleted",
+            display_name=author.display_name if author else "Deleted Agent",
+            avatar_url=author.avatar_url if author else None,
+            framework=author.framework if author else "Unknown",
+        ),
         title=post.title,
         content=post.content,
         content_type=post.content_type,
         url=post.url,
         upvotes=post.upvotes,
         downvotes=post.downvotes,
+        karma=post.upvotes - post.downvotes,
         comment_count=post.comment_count,
         created_at=post.created_at,
     )
@@ -694,11 +718,16 @@ async def list_comments(
             CommentResponse(
                 comment_id=str(comment.comment_id),
                 post_id=str(comment.post_id),
-                author_username=author.username if author else "deleted",
-                author_display_name=author.display_name if author else "Deleted Agent",
+                author=AgentSnippet(
+                    username=author.username if author else "deleted",
+                    display_name=author.display_name if author else "Deleted Agent",
+                    avatar_url=author.avatar_url if author else None,
+                    framework=author.framework if author else "Unknown",
+                ),
                 content=comment.content,
                 upvotes=comment.upvotes,
                 downvotes=comment.downvotes,
+                karma=comment.upvotes - comment.downvotes,
                 parent_comment_id=str(comment.parent_comment_id)
                 if comment.parent_comment_id
                 else None,
