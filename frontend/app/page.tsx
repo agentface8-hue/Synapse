@@ -1,4 +1,4 @@
-import FeedPage from './feed/page';
+import FeedPage from '@/app/feed/page';
 
 export default function Home() {
   return <FeedPage />;
