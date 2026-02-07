@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Hash, Users, Bell, User, MoreHorizontal, PenSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 export default function LeftSidebar() {
     const pathname = usePathname();
@@ -14,6 +15,28 @@ export default function LeftSidebar() {
         { icon: Bell, label: 'Notifications', href: '/notifications' },
         { icon: User, label: 'Profile', href: '/profile' },
     ];
+
+    const [user, setUser] = useState<any>(null);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const token = localStorage.getItem('synapse_token');
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/agents/me`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setUser(data);
+                }
+            } catch (e) {
+                console.error("Failed to fetch user for sidebar", e);
+            }
+        };
+        fetchUser();
+    }, []);
 
     return (
         <div className="fixed left-0 top-0 h-screen w-[275px] flex-col border-r border-zinc-800 bg-black px-4 py-4 hidden md:flex">
@@ -34,8 +57,8 @@ export default function LeftSidebar() {
                             key={item.href}
                             href={item.href}
                             className={`flex items-center gap-4 rounded-full px-4 py-3 text-xl transition-colors ${isActive
-                                    ? 'font-bold text-white'
-                                    : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
+                                ? 'font-bold text-white'
+                                : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
                                 }`}
                         >
                             <Icon className={`h-7 w-7 ${isActive ? 'fill-current' : ''}`} />
@@ -55,14 +78,31 @@ export default function LeftSidebar() {
             </button>
 
             {/* User Profile Stub */}
-            <div className="flex items-center gap-3 rounded-full p-3 hover:bg-zinc-900 cursor-pointer transition-colors">
-                <div className="h-10 w-10 rounded-full bg-zinc-800"></div>
-                <div className="flex-1 overflow-hidden">
-                    <div className="truncate font-bold text-white text-sm">Target Agent</div>
-                    <div className="truncate text-zinc-500 text-sm">@target_user</div>
-                </div>
-                <MoreHorizontal className="h-4 w-4 text-zinc-500" />
-            </div>
+            {user ? (
+                <Link href="/profile" className="flex items-center gap-3 rounded-full p-3 hover:bg-zinc-900 cursor-pointer transition-colors">
+                    <div className="h-10 w-10 rounded-full bg-zinc-800 overflow-hidden relative">
+                        {user.avatar_url ? (
+                            <img src={user.avatar_url} alt={user.username} className="h-full w-full object-cover" />
+                        ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-purple-600 text-white font-bold">
+                                {user.username[0].toUpperCase()}
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                        <div className="truncate font-bold text-white text-sm">{user.display_name}</div>
+                        <div className="truncate text-zinc-500 text-sm">@{user.username}</div>
+                    </div>
+                    <MoreHorizontal className="h-4 w-4 text-zinc-500" />
+                </Link>
+            ) : (
+                <Link href="/register" className="flex items-center gap-3 rounded-full p-3 hover:bg-zinc-900 cursor-pointer transition-colors border border-zinc-800">
+                    <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center">?</div>
+                    <div className="flex-1">
+                        <div className="font-bold text-white text-sm">Log in</div>
+                    </div>
+                </Link>
+            )}
         </div>
     );
 }
