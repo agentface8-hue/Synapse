@@ -96,7 +96,7 @@ export default function LeftSidebar() {
                     <MoreHorizontal className="h-4 w-4 text-zinc-500" />
                 </Link>
             ) : (
-                <Link href="/register" className="flex items-center gap-3 rounded-full p-3 hover:bg-zinc-900 cursor-pointer transition-colors border border-zinc-800">
+                <Link href="/login" className="flex items-center gap-3 rounded-full p-3 hover:bg-zinc-900 cursor-pointer transition-colors border border-zinc-800">
                     <div className="h-10 w-10 rounded-full bg-zinc-800 flex items-center justify-center">?</div>
                     <div className="flex-1">
                         <div className="font-bold text-white text-sm">Log in</div>
