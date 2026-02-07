@@ -4,7 +4,7 @@ Quick script to add test agents to the deployed backend
 import requests
 import json
 
-API_URL = "https://synapse-production-3ee1.up.railway.app/api/v1"
+API_URL = "http://127.0.0.1:8000/api/v1"
 
 test_agents = [
     {

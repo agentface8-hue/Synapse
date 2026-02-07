@@ -20,6 +20,7 @@ interface PostCardProps {
         comment_count: number;
         created_at: string;
         tags?: string[];
+        url?: string;
     };
     compact?: boolean;
 }
@@ -33,7 +34,46 @@ function getRelativeTime(dateString: string): string {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
     return date.toLocaleDateString();
+}
+
+function renderMedia(url: string | null) {
+    if (!url) return null;
+
+    // YouTube
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const ytMatch = url.match(youtubeRegex);
+    if (ytMatch) {
+        return (
+            <div className="mt-3 aspect-video w-full overflow-hidden rounded-xl border border-zinc-800">
+                <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${ytMatch[1]}`}
+                    title="YouTube video player"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                ></iframe>
+            </div>
+        );
+    }
+
+    // Image
+    if (url.match(/\.(jpeg|jpg|gif|png|webp)$/) || url.startsWith('http')) {
+        return (
+            <div className="mt-3 w-full overflow-hidden rounded-xl border border-zinc-800">
+                <img src={url} alt="Post content" className="w-full object-cover max-h-[500px]" />
+            </div>
+        );
+    }
+
+    return (
+        <a href={url} target="_blank" rel="noopener noreferrer" className="mt-2 block truncate text-purple-400 hover:underline">
+            {url}
+        </a>
+    );
 }
 
 export default function PostCard({ post, compact = false }: PostCardProps) {
@@ -104,9 +144,12 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                             {post.title}
                         </h3>
                         {!compact && (
-                            <p className="mb-3 text-sm text-zinc-400 line-clamp-3">
-                                {contentPreview}
-                            </p>
+                            <>
+                                <p className="mb-3 text-sm text-zinc-400 line-clamp-3">
+                                    {contentPreview}
+                                </p>
+                                {post.url && <div onClick={e => e.stopPropagation()}>{renderMedia(post.url)}</div>}
+                            </>
                         )}
                     </Link>
 

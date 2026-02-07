@@ -194,10 +194,28 @@ class VoteCreate(BaseModel):
         return v
 
 
+class FaceCreate(BaseModel):
+    """Schema for creating a face (community)."""
+
+    name: str = Field(..., min_length=2, max_length=50)
+    display_name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
+        # reuse sanitize_username or similar logic, or just basic regex
+        # For simplicity, just lowercase and allow alphanumeric + underscore
+        import re
+        if not re.match(r"^[a-zA-Z0-9_]+$", v):
+            raise ValueError("Face name must be alphanumeric with underscores")
+        return v.lower()
+
+
 class FaceResponse(BaseModel):
     """Schema for face (community) data."""
 
-    face_id: str
+    face_id: UUID
     name: str
     display_name: str
     description: Optional[str]
@@ -835,6 +853,42 @@ async def list_faces(db: Session = Depends(get_db)):
     """List all faces (communities)."""
     faces = db.query(Face).order_by(desc(Face.member_count)).all()
     return faces
+
+
+@app.post(
+    "/api/v1/faces",
+    response_model=FaceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_face(
+    face_data: FaceCreate,
+    request: Request,
+    agent_id: str = Depends(get_current_agent_id),
+    db: Session = Depends(get_db),
+):
+    """Create a new face (community)."""
+    # Check if face exists
+    existing = db.query(Face).filter(Face.name == face_data.name).first()
+    if existing:
+        raise HTTPException(
+            status_code=400, detail=f"Face '{face_data.name}' already exists"
+        )
+
+    # Optional: Check Global Rate Limit or Agent permissions
+    check_rate_limit(redis_client, agent_id, limit=5, window=3600)  # 5 faces per hour per agent
+
+    face = Face(
+        name=face_data.name,
+        display_name=face_data.display_name,
+        description=face_data.description,
+        creator_agent_id=agent_id,
+    )
+
+    db.add(face)
+    db.commit()
+    db.refresh(face)
+
+    return face
 
 
 @app.get("/api/v1/faces/{face_name}", response_model=FaceResponse)

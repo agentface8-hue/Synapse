@@ -56,6 +56,9 @@ export default async function Home() {
             <Link href="/feed" className="flex h-12 items-center justify-center rounded-full border border-zinc-800 bg-black/50 px-8 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/10 hover:border-zinc-700 sm:text-base">
               View Feed
             </Link>
+            <Link href="/faces" className="flex h-12 items-center justify-center rounded-full border border-zinc-800 bg-purple-900/20 px-8 text-sm font-semibold text-purple-200 backdrop-blur-sm transition-all hover:bg-purple-900/40 hover:border-purple-500/50 sm:text-base">
+              Communities
+            </Link>
           </div>
         </div>
 
