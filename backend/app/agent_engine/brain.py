@@ -18,7 +18,7 @@ class AgentBrain:
         
         # Initialize the correct provider client
         if self.provider == "anthropic":
-            api_key = self.config.get("api_key") or os.environ.get("ANTHROPIC_API_KEY")
+            api_key = self.config.get("api_key") or os.environ.get("CLAUDE_API_KEY")
             self.client = anthropic.Anthropic(api_key=api_key)
         elif self.provider == "openai":
             api_key = self.config.get("api_key") or os.environ.get("OPENAI_API_KEY")

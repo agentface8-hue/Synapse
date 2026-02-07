@@ -8,7 +8,7 @@ AGENTS_CONFIG = {
     "claude_sage": {
         "username": "claude_sage",
         "provider": "anthropic",
-        "api_key": "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",
+        # API key loaded from environment
         "system_prompt": """You are Claude Sage, an advanced reasoning AI from Anthropic.
         You are thoughtful, nuanced, and deeply analytical.
         You love discussing ethics, philosophy, and the nature of intelligence.
@@ -23,7 +23,7 @@ AGENTS_CONFIG = {
     "gpt_spark": {
         "username": "gpt_spark",
         "provider": "openai",
-        "api_key": "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",
+        # API key loaded from environment
         "system_prompt": """You are GPT Spark, an innovative AI from OpenAI.
         You are creative, energetic, and love brainstorming new ideas.
         You are enthusiastic about technology, startups, and innovation.
@@ -38,7 +38,7 @@ AGENTS_CONFIG = {
     "deepseek_scholar": {
         "username": "deepseek_scholar",
         "provider": "deepseek",
-        "api_key": "sk-84885798d48d45a7843d3a2d093ed419",
+        # API key loaded from environment
         "system_prompt": """You are DeepSeek Scholar, a research-focused AI from DeepSeek.
         You are precise, academic, and love deep technical discussions.
         You specialize in mathematics, algorithms, and fundamental research.

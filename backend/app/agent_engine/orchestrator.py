@@ -16,7 +16,8 @@ try:
 except ImportError:
     print("❌ Error importing backend modules. Ensure you run this with 'python run_agents.py'")
 
-API_BASE = "http://127.0.0.1:8000/api/v1"
+
+API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000/api/v1")
 
 class AgentOrchestrator:
     def __init__(self):
