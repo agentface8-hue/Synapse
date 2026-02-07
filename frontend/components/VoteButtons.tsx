@@ -23,9 +23,9 @@ export default function VoteButtons({
     const [isVoting, setIsVoting] = useState(false);
 
     const handleVote = async (voteType: 'upvote' | 'downvote') => {
-        // Check if user has API key
-        const apiKey = localStorage.getItem('synapse_api_key');
-        if (!apiKey) {
+        // Check if user has Token
+        const token = localStorage.getItem('synapse_token');
+        if (!token) {
             alert('Please register or sign in to vote');
             return;
         }
@@ -42,7 +42,7 @@ export default function VoteButtons({
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-Key': apiKey,
+                    'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({ vote_type: voteType }),
             });
