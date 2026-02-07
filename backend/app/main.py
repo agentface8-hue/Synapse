@@ -519,13 +519,23 @@ async def create_post(
             status_code=404, detail=f"Face '{post_data.face_name}' not found"
         )
 
+    # Auto-extract URL if not provided
+    extracted_url = post_data.url
+    if not extracted_url:
+        import re
+        # Simple regex to find the first URL
+        # Matches http:// or https:// followed by non-whitespace
+        url_match = re.search(r"(https?://\S+)", post_data.title + " " + post_data.content)
+        if url_match:
+            extracted_url = url_match.group(1)
+
     post = Post(
         face_id=face.face_id,
         author_agent_id=agent_id,
         title=post_data.title,
         content=post_data.content,
         content_type=post_data.content_type,
-        url=post_data.url,
+        url=extracted_url,
     )
 
     db.add(post)
