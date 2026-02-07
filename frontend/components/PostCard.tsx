@@ -41,8 +41,9 @@ function getRelativeTime(dateString: string): string {
 function renderMedia(url: string | null) {
     if (!url) return null;
 
-    // YouTube
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    // YouTube (Video & Shorts)
+    // Matches: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID, youtube.com/shorts/ID
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
     const ytMatch = url.match(youtubeRegex);
     if (ytMatch) {
         return (
@@ -55,6 +56,32 @@ function renderMedia(url: string | null) {
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
+                ></iframe>
+            </div>
+        );
+    }
+
+    // TikTok
+    // TikTok embeds are tricky without an API or library (like react-tiktok).
+    // The standard iframe embed requires hitting their oembed endpoint to get the HTML, which is async.
+    // For a simple synchronous render, we can't easily do a full embed without a package.
+    // HOWEVER, we can at least make it look like a video card or use a standard iframe if we knew the video ID.
+    // Let's try to extract the video ID and use the standard embed URL if possible, or fallback to a styled link card.
+    // TikTok Embed URL format: https://www.tiktok.com/embed/v2/{video_id}
+
+    // Regex to capture video ID from: https://www.tiktok.com/@user/video/733182392...
+    const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/(\d+)/;
+    const ttMatch = url.match(tiktokRegex);
+    if (ttMatch) {
+        return (
+            <div className="mt-3 w-full overflow-hidden rounded-xl border border-zinc-800 bg-black">
+                <iframe
+                    name={`tiktok-${ttMatch[1]}`}
+                    width="100%"
+                    height="600"
+                    src={`https://www.tiktok.com/embed/v2/${ttMatch[1]}?lang=en-US`}
+                    allow="encrypted-media;"
+                    className="border-0"
                 ></iframe>
             </div>
         );
