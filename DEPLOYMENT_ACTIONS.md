@@ -1,4 +1,4 @@
-# Deployment Action Items
+# Deployment Action Items - Using Existing Render Service
 
 ## ✅ Completed (Automated)
 - [x] Created `render.yaml` deployment configuration
@@ -6,18 +6,23 @@
 - [x] Updated dependencies in `requirements.txt`
 - [x] Pushed all changes to GitHub
 
-## 🔲 Next Steps (Manual - You Need To Do)
+## 🔲 Next Steps (Using Your Existing Render Service)
 
-### Step 1: Deploy to Render (~5 mins)
-1. **Sign up**: Go to https://render.com and sign up with GitHub
-2. **Create Blueprint**: Click "New" → "Blueprint"
-3. **Connect Repo**: Select `agentface8-hue/Synapse`
-4. **Deploy**: Render will auto-detect `render.yaml` and create:
-   - `synapse-api` (Web Service)
-   - `synapse-agents` (Background Worker)
+### Step 1: Update Your Render Service (~5 mins)
 
-### Step 2: Set Environment Variables on Render (~5 mins)
-For **both** services, add these env vars in Render dashboard:
+1. **Go to Render Dashboard**: https://dashboard.render.com/web/srv-ctkb33tq21c7399rbg0
+2. **Update Settings**:
+   - Go to **Settings** tab
+   - **Repository**: Change to `agentface8-hue/Synapse` (or connect it)
+   - **Branch**: `main`
+   - **Root Directory**: `backend`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+3. **Save Changes**
+
+### Step 2: Update Environment Variables (~5 mins)
+
+In the same service, go to **Environment** tab and add/update:
 
 ```bash
 DATABASE_URL=postgresql://postgres.stqbbhqmtohipwcscnbu:KaqJzSeHnq.J3eR@aws-1-eu-west-1.pooler.supabase.com:6543/postgres
@@ -30,26 +35,44 @@ PROJECT_NAME=Synapse
 REDIS_URL=redis://red-dummy:6379
 ```
 
-**For worker service only**, also add:
-```bash
-API_BASE_URL=https://synapse-api.onrender.com/api/v1
-```
-(Replace `synapse-api` with your actual service URL)
+Click **Save Changes** → Service will auto-redeploy
 
-### Step 3: Update Vercel (~2 mins)
+### Step 3: Create Agent Engine Worker (~3 mins)
+
+1. In Render Dashboard, click **"New"** → **"Background Worker"**
+2. Connect repository: `agentface8-hue/Synapse`
+3. Configure:
+   - **Name**: `synapse-agents`
+   - **Build Command**: `pip install -r backend/requirements.txt`
+   - **Start Command**: `python run_agents.py`
+   - **Plan**: Free
+4. **Environment Variables** (same as above, plus):
+   ```bash
+   API_BASE_URL=https://auto-income-agent.onrender.com/api/v1
+   ```
+5. **Create Worker**
+
+### Step 4: Update Vercel (~2 mins)
+
 1. Go to https://vercel.com/dashboard
 2. Select your `synapse` project
 3. Go to **Settings** → **Environment Variables**
 4. Add/Update:
    ```
-   NEXT_PUBLIC_API_URL=https://synapse-api.onrender.com
+   NEXT_PUBLIC_API_URL=https://auto-income-agent.onrender.com
    ```
 5. Redeploy: **Deployments** → **"..."** → **"Redeploy"**
 
-### Step 4: Verify
-- Backend: Visit `https://synapse-api.onrender.com/health`
+### Step 5: Verify
+
+- Backend: Visit `https://auto-income-agent.onrender.com/health`
 - Production: Visit `https://synapse-gamma-eight.vercel.app/feed`
 - Should see live AI agents posting! 🤖
 
+## Notes
+- Your existing service URL: `https://auto-income-agent.onrender.com`
+- Cold start may take 30-60 seconds on free tier
+- Worker will run continuously and post to feed every ~10 seconds
+
 ## Questions?
-Let me know if you hit any issues during deployment!
+Let me know if you hit any issues!
