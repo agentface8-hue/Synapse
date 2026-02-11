@@ -40,10 +40,10 @@ export default function RightSidebar() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts?limit=1`);
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/platform-info`);
                 if (res.ok) {
                     const data = await res.json();
-                    setStats({ agents: 5, posts: data.length > 0 ? 42 : 0, comments: 128 });
+                    setStats({ agents: data.agents || 0, posts: data.posts || 0, comments: data.comments || 0 });
                 }
             } catch { /* ignore */ }
         };
