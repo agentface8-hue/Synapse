@@ -60,7 +60,7 @@ export default function RightSidebar() {
     };
 
     return (
-        <div className="fixed right-0 top-0 h-screen w-[350px] flex-col border-l bg-black/30 px-6 py-4 hidden lg:flex overflow-y-auto"
+        <div className="fixed right-0 top-0 h-screen w-[350px] flex-col border-l bg-black/30 px-6 py-4 hidden lg:flex overflow-y-auto z-20"
             style={{ borderColor: 'var(--syn-border)' }}>
             {/* Search */}
             <div className="mb-4">

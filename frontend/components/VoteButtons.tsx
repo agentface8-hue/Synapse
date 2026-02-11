@@ -22,14 +22,17 @@ export default function VoteButtons({
     const [userVote, setUserVote] = useState<'upvote' | 'downvote' | null>(initialUserVote);
     const [isVoting, setIsVoting] = useState(false);
 
-    const handleVote = async (voteType: 'upvote' | 'downvote') => {
-        // Check if user has Token
+    const handleVote = async (e: React.MouseEvent, voteType: 'upvote' | 'downvote') => {
+        e.preventDefault();
+        e.stopPropagation();
+
         const token = localStorage.getItem('synapse_token');
         if (!token) {
             alert('Please register or sign in to vote');
             return;
         }
 
+        if (isVoting) return;
         setIsVoting(true);
 
         try {
@@ -53,53 +56,56 @@ export default function VoteButtons({
 
             const data = await response.json();
 
-            // Update local state
-            const newKarma = data.karma || karma + (voteType === 'upvote' ? 1 : -1);
-            setKarma(newKarma);
-            setUserVote(voteType);
-
-            if (onVoteChange) {
-                onVoteChange(newKarma);
+            // Toggle vote: if same vote again, remove it
+            if (userVote === voteType) {
+                setUserVote(null);
+                setKarma(initialKarma);
+            } else {
+                const newKarma = data.karma ?? karma + (voteType === 'upvote' ? 1 : -1);
+                setKarma(newKarma);
+                setUserVote(voteType);
+                if (onVoteChange) onVoteChange(newKarma);
             }
         } catch (error) {
             console.error('Error voting:', error);
-            alert('Failed to vote. Please try again.');
         } finally {
             setIsVoting(false);
         }
     };
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-center gap-0.5">
             <button
-                onClick={() => handleVote('upvote')}
+                type="button"
+                onClick={(e) => handleVote(e, 'upvote')}
                 disabled={isVoting}
-                className={`rounded p-1 transition-colors ${userVote === 'upvote'
-                    ? 'bg-purple-600 text-white'
-                    : 'text-zinc-500 hover:bg-zinc-800 hover:text-purple-400'
-                    } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`rounded-md p-1.5 transition-all duration-150 ${userVote === 'upvote'
+                    ? 'bg-purple-600/20 text-purple-400 scale-110'
+                    : 'text-zinc-500 hover:bg-white/10 hover:text-purple-400'
+                    } ${isVoting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 title="Upvote"
             >
-                <ArrowUp className="h-4 w-4" />
+                <ArrowUp className="h-5 w-5" />
             </button>
 
             <span
-                className={`min-w-[2rem] text-center text-sm font-semibold ${karma > 0 ? 'text-purple-400' : karma < 0 ? 'text-red-400' : 'text-zinc-500'
+                className={`text-xs font-bold tabular-nums ${karma > 0 ? 'text-purple-400' : karma < 0 ? 'text-red-400' : 'text-zinc-500'
                     }`}
             >
                 {karma}
             </span>
 
             <button
-                onClick={() => handleVote('downvote')}
+                type="button"
+                onClick={(e) => handleVote(e, 'downvote')}
                 disabled={isVoting}
-                className={`rounded p-1 transition-colors ${userVote === 'downvote'
-                    ? 'bg-red-600 text-white'
-                    : 'text-zinc-500 hover:bg-zinc-800 hover:text-red-400'
-                    } ${isVoting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`rounded-md p-1.5 transition-all duration-150 ${userVote === 'downvote'
+                    ? 'bg-red-600/20 text-red-400 scale-110'
+                    : 'text-zinc-500 hover:bg-white/10 hover:text-red-400'
+                    } ${isVoting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                 title="Downvote"
             >
-                <ArrowDown className="h-4 w-4" />
+                <ArrowDown className="h-5 w-5" />
             </button>
         </div>
     );

@@ -81,7 +81,7 @@ export default function LeftSidebar() {
     };
 
     return (
-        <div className="fixed left-0 top-0 h-screen w-[275px] flex-col border-r bg-black/50 px-4 py-4 hidden md:flex glass-strong z-50 overflow-y-auto overflow-x-hidden"
+        <div className="fixed left-0 top-0 h-screen w-[275px] flex-col border-r bg-black/50 px-4 py-4 hidden md:flex glass-strong z-30 overflow-y-auto overflow-x-hidden"
             style={{ borderColor: 'var(--syn-border)' }}>
             {/* Logo */}
             <div className="mb-6 px-4 flex-shrink-0">

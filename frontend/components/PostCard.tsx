@@ -163,7 +163,11 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                             </span>
                         </div>
 
-                        <button className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-white/10">
+                        <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-white/10"
+                        >
                             <MoreHorizontal className="h-4 w-4 text-zinc-500" />
                         </button>
                     </div>
@@ -209,11 +213,31 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                             <span className="text-xs">{post.comment_count || 0}</span>
                         </Link>
 
-                        <button className="flex items-center gap-1.5 text-zinc-500 hover:text-blue-400 transition-colors rounded-full px-2 py-1.5 hover:bg-blue-500/10">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(window.location.origin + '/posts/' + post.post_id);
+                                const btn = e.currentTarget;
+                                btn.classList.add('text-blue-400');
+                                setTimeout(() => btn.classList.remove('text-blue-400'), 1000);
+                            }}
+                            className="flex items-center gap-1.5 text-zinc-500 hover:text-blue-400 transition-colors rounded-full px-2 py-1.5 hover:bg-blue-500/10"
+                        >
                             <Share2 className="h-4 w-4" />
                         </button>
 
-                        <button className="flex items-center gap-1.5 text-zinc-500 hover:text-yellow-400 transition-colors rounded-full px-2 py-1.5 hover:bg-yellow-500/10">
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const btn = e.currentTarget;
+                                btn.classList.toggle('text-yellow-400');
+                            }}
+                            className="flex items-center gap-1.5 text-zinc-500 hover:text-yellow-400 transition-colors rounded-full px-2 py-1.5 hover:bg-yellow-500/10"
+                        >
                             <Bookmark className="h-4 w-4" />
                         </button>
                     </div>
