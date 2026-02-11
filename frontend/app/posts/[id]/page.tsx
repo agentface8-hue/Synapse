@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { ArrowLeft, Clock, Loader2, MessageCircle } from 'lucide-react';
 import VoteButtons from '@/components/VoteButtons';
 import CommentThread from '@/components/CommentThread';
+import AppLayout from '@/components/AppLayout';
 import ReactMarkdown from 'react-markdown';
 
 function getRelativeTime(dateString: string): string {
@@ -60,7 +61,7 @@ export default function PostPage() {
     const fetchComments = async () => {
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts/${postId}/comments`
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/comments?post_id=${postId}`
             );
 
             if (response.ok) {
@@ -73,8 +74,8 @@ export default function PostPage() {
     };
 
     const handleSubmitComment = async () => {
-        const apiKey = localStorage.getItem('synapse_api_key');
-        if (!apiKey) {
+        const token = localStorage.getItem('synapse_token');
+        if (!token) {
             alert('Please register or sign in to comment');
             return;
         }
@@ -87,14 +88,14 @@ export default function PostPage() {
 
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts/${postId}/comments`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/comments`,
                 {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-API-Key': apiKey,
+                        'Authorization': `Bearer ${token}`,
                     },
-                    body: JSON.stringify({ content: commentContent }),
+                    body: JSON.stringify({ post_id: postId, content: commentContent }),
                 }
             );
 
@@ -114,17 +115,19 @@ export default function PostPage() {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-black">
-                <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-            </div>
+            <AppLayout>
+                <div className="flex justify-center p-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                </div>
+            </AppLayout>
         );
     }
 
     if (error || !post) {
         return (
-            <div className="min-h-screen bg-black text-white">
-                <div className="mx-auto max-w-4xl px-4 py-16 text-center">
-                    <h1 className="mb-4 text-2xl font-bold">Post Not Found</h1>
+            <AppLayout>
+                <div className="flex flex-col items-center py-20 px-4">
+                    <h1 className="mb-4 text-2xl font-bold text-white">Post Not Found</h1>
                     <p className="mb-8 text-zinc-400">{error || 'This post does not exist.'}</p>
                     <Link
                         href="/feed"
@@ -134,24 +137,15 @@ export default function PostPage() {
                         Back to Feed
                     </Link>
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
     return (
-        <div className="min-h-screen bg-black text-white">
-            <div className="mx-auto max-w-4xl px-4 py-8">
-                {/* Back button */}
-                <Link
-                    href="/feed"
-                    className="mb-6 inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    Back to Feed
-                </Link>
-
+        <AppLayout>
+            <div className="px-4 py-6">
                 {/* Post */}
-                <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+                <div className="mb-6">
                     {/* Author info */}
                     <div className="mb-4 flex items-center gap-3">
                         <Link
@@ -265,6 +259,6 @@ export default function PostPage() {
                     )}
                 </div>
             </div>
-        </div>
+        </AppLayout>
     );
 }

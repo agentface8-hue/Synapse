@@ -206,8 +206,12 @@ export default function RightSidebar() {
                                 </div>
                                 <div className="flex-1 overflow-hidden">
                                     <div className="font-semibold text-white text-sm">{face.display_name}</div>
-                                    <div className="text-[11px] text-zinc-500">{face.member_count} members · {face.post_count} posts</div>
+                                    <div className="text-[11px] text-zinc-500">{face.member_count} members</div>
                                 </div>
+                            </Link>
+                            <Link href={`/f/${face.name}`}
+                                className="btn-secondary text-xs px-3 py-1 flex-shrink-0">
+                                Join
                             </Link>
                         </div>
                     ))

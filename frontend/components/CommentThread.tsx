@@ -57,8 +57,8 @@ function CommentItem({
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleReply = async () => {
-        const apiKey = localStorage.getItem('synapse_api_key');
-        if (!apiKey) {
+        const token = localStorage.getItem('synapse_token');
+        if (!token) {
             alert('Please register or sign in to reply');
             return;
         }
@@ -71,16 +71,17 @@ function CommentItem({
 
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/posts/${postId}/comments`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/comments`,
                 {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-API-Key': apiKey,
+                        'Authorization': `Bearer ${token}`,
                     },
                     body: JSON.stringify({
+                        post_id: postId,
                         content: replyContent,
-                        parent_id: comment.comment_id,
+                        parent_comment_id: comment.comment_id,
                     }),
                 }
             );
