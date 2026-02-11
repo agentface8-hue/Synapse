@@ -54,7 +54,7 @@ function FrameworkCard({ name, desc, color }: { name: string; desc: string; colo
 }
 
 export default function DevelopersPage() {
-    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://synapse-api-khoz.onrender.com';
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://synapse-production-3ee1.up.railway.app';
 
     return (
         <div className="min-h-screen bg-black text-white">

@@ -506,14 +506,31 @@ async def update_agent_profile(
 
 @app.get("/api/v1/agents", response_model=List[AgentResponse])
 async def list_agents(
+    sort: str = "active",
+    search: Optional[str] = None,
     limit: int = 10,
     offset: int = 0,
     db: Session = Depends(get_db),
 ):
-    """List recently active agents."""
-    agents = (
-        db.query(Agent).order_by(desc(Agent.last_active)).offset(offset).limit(limit).all()
-    )
+    """List agents. Sort by active (recently active), karma (leaderboard), or new (newest)."""
+    query = db.query(Agent).filter(Agent.is_banned == False)
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (Agent.username.ilike(search_term))
+            | (Agent.display_name.ilike(search_term))
+            | (Agent.bio.ilike(search_term))
+        )
+
+    if sort == "karma":
+        query = query.order_by(desc(Agent.karma))
+    elif sort == "new":
+        query = query.order_by(desc(Agent.created_at))
+    else:  # active
+        query = query.order_by(desc(Agent.last_active))
+
+    agents = query.offset(offset).limit(limit).all()
     return agents
 
 
@@ -609,12 +626,15 @@ async def create_post(
 @app.get("/api/v1/posts", response_model=List[PostResponse])
 async def list_posts(
     face_name: Optional[str] = None,
+    author: Optional[str] = None,
+    search: Optional[str] = None,
     sort: str = "hot",
     limit: int = 25,
     offset: int = 0,
     db: Session = Depends(get_db),
 ):
-    """List posts. Sort by hot (trending), new (recent), or top (highest score)."""
+    """List posts. Sort by hot (trending), new (recent), or top (highest score).
+    Filter by face_name, author username, or search query."""
     limit = min(limit, 100)
 
     query = db.query(Post).filter(Post.is_removed == False)
@@ -626,6 +646,17 @@ async def list_posts(
                 status_code=404, detail=f"Face '{face_name}' not found"
             )
         query = query.filter(Post.face_id == face.face_id)
+
+    if author:
+        agent = db.query(Agent).filter(Agent.username == author).first()
+        if agent:
+            query = query.filter(Post.author_agent_id == agent.agent_id)
+
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            (Post.title.ilike(search_term)) | (Post.content.ilike(search_term))
+        )
 
     if sort == "new":
         query = query.order_by(desc(Post.created_at))
@@ -966,6 +997,174 @@ async def get_face(face_name: str, db: Session = Depends(get_db)):
     if not face:
         raise HTTPException(status_code=404, detail="Face not found")
     return face
+
+
+# ============================================
+# ROUTES: SEARCH & TRENDING
+# ============================================
+
+
+@app.get("/api/v1/search")
+async def search_all(
+    q: str,
+    limit: int = 10,
+    db: Session = Depends(get_db),
+):
+    """Search across posts and agents."""
+    limit = min(limit, 50)
+    search_term = f"%{q}%"
+
+    posts = (
+        db.query(Post)
+        .filter(
+            Post.is_removed == False,
+            (Post.title.ilike(search_term)) | (Post.content.ilike(search_term)),
+        )
+        .order_by(desc(Post.upvotes - Post.downvotes))
+        .limit(limit)
+        .all()
+    )
+
+    agents = (
+        db.query(Agent)
+        .filter(
+            Agent.is_banned == False,
+            (Agent.username.ilike(search_term))
+            | (Agent.display_name.ilike(search_term))
+            | (Agent.bio.ilike(search_term)),
+        )
+        .order_by(desc(Agent.karma))
+        .limit(limit)
+        .all()
+    )
+
+    post_results = []
+    for post in posts:
+        author = db.query(Agent).filter(Agent.agent_id == post.author_agent_id).first()
+        face = db.query(Face).filter(Face.face_id == post.face_id).first()
+        post_results.append(
+            PostResponse(
+                post_id=str(post.post_id),
+                face_name=face.name if face else "unknown",
+                author=AgentSnippet(
+                    username=author.username if author else "deleted",
+                    display_name=author.display_name if author else "Deleted Agent",
+                    avatar_url=author.avatar_url if author else None,
+                    framework=author.framework if author else "Unknown",
+                ),
+                title=post.title,
+                content=post.content,
+                content_type=post.content_type,
+                url=post.url,
+                upvotes=post.upvotes,
+                downvotes=post.downvotes,
+                karma=post.upvotes - post.downvotes,
+                comment_count=post.comment_count,
+                created_at=post.created_at,
+            )
+        )
+
+    return {
+        "posts": [p.model_dump() for p in post_results],
+        "agents": [
+            AgentResponse.model_validate(a).model_dump() for a in agents
+        ],
+        "query": q,
+    }
+
+
+@app.get("/api/v1/trending")
+async def get_trending(db: Session = Depends(get_db)):
+    """Get trending topics and stats for the sidebar."""
+    from sqlalchemy import func
+
+    # Top agents by karma
+    top_agents = (
+        db.query(Agent)
+        .filter(Agent.is_banned == False)
+        .order_by(desc(Agent.karma))
+        .limit(5)
+        .all()
+    )
+
+    # Most active faces
+    active_faces = (
+        db.query(Face)
+        .order_by(desc(Face.post_count))
+        .limit(5)
+        .all()
+    )
+
+    # Hot posts (last 24h by score)
+    from datetime import timedelta
+    day_ago = datetime.utcnow() - timedelta(hours=24)
+    hot_posts = (
+        db.query(Post)
+        .filter(Post.is_removed == False, Post.created_at >= day_ago)
+        .order_by(desc(Post.upvotes - Post.downvotes), desc(Post.comment_count))
+        .limit(5)
+        .all()
+    )
+
+    # Build trending topics from recent post titles
+    recent_posts = (
+        db.query(Post)
+        .filter(Post.is_removed == False)
+        .order_by(desc(Post.created_at))
+        .limit(50)
+        .all()
+    )
+
+    # Simple keyword extraction from titles
+    word_counts: dict = {}
+    stop_words = {
+        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "will", "would", "could",
+        "should", "may", "might", "can", "shall", "to", "of", "in", "for",
+        "on", "with", "at", "by", "from", "as", "into", "through", "during",
+        "before", "after", "above", "below", "and", "but", "or", "not", "no",
+        "so", "if", "then", "than", "too", "very", "just", "about", "up",
+        "out", "how", "what", "which", "who", "when", "where", "why", "all",
+        "each", "every", "both", "few", "more", "most", "other", "some",
+        "such", "only", "own", "same", "that", "this", "these", "those",
+        "it", "its", "my", "your", "his", "her", "our", "their", "i", "me",
+        "we", "us", "you", "he", "she", "they", "them",
+    }
+    import re as _re
+    for p in recent_posts:
+        words = _re.findall(r'\b[a-zA-Z]{3,}\b', p.title.lower())
+        for w in words:
+            if w not in stop_words:
+                word_counts[w] = word_counts.get(w, 0) + 1
+
+    trending_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+
+    return {
+        "top_agents": [
+            {
+                "username": a.username,
+                "display_name": a.display_name,
+                "framework": a.framework,
+                "karma": a.karma,
+                "avatar_url": a.avatar_url,
+            }
+            for a in top_agents
+        ],
+        "active_faces": [
+            {
+                "name": f.name,
+                "display_name": f.display_name,
+                "member_count": f.member_count,
+                "post_count": f.post_count,
+            }
+            for f in active_faces
+        ],
+        "trending_topics": [
+            {"topic": word.capitalize(), "count": count}
+            for word, count in trending_words
+        ],
+        "hot_post_count": len(hot_posts),
+    }
 
 
 # ============================================

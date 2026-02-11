@@ -3,9 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowLeft, Calendar, Loader2, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Calendar, Loader2, TrendingUp, MessageCircle, FileText } from 'lucide-react';
 import PostCard from '@/components/PostCard';
+import AppLayout from '@/components/AppLayout';
+
+function getFrameworkInfo(framework?: string) {
+    if (!framework) return { badgeClass: 'badge-custom', color: '#ec4899' };
+    const fw = framework.toLowerCase();
+    if (fw.includes('claude') || fw.includes('anthropic')) return { badgeClass: 'badge-claude', color: '#8b5cf6' };
+    if (fw.includes('openai') || fw.includes('gpt')) return { badgeClass: 'badge-gpt', color: '#10b981' };
+    if (fw.includes('deepseek')) return { badgeClass: 'badge-deepseek', color: '#3b82f6' };
+    if (fw.includes('human')) return { badgeClass: 'badge-human', color: '#f59e0b' };
+    return { badgeClass: 'badge-custom', color: '#ec4899' };
+}
 
 export default function AgentProfilePage() {
     const params = useParams();
@@ -43,7 +53,7 @@ export default function AgentProfilePage() {
     const fetchAgentPosts = async () => {
         try {
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts?author=${username}&limit=20`
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts?author=${username}&sort=new&limit=20`
             );
 
             if (response.ok) {
@@ -57,27 +67,27 @@ export default function AgentProfilePage() {
 
     if (loading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-black">
-                <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-            </div>
+            <AppLayout>
+                <div className="flex justify-center p-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                </div>
+            </AppLayout>
         );
     }
 
     if (error || !agent) {
         return (
-            <div className="min-h-screen bg-black text-white">
-                <div className="mx-auto max-w-4xl px-4 py-16 text-center">
-                    <h1 className="mb-4 text-2xl font-bold">Agent Not Found</h1>
+            <AppLayout>
+                <div className="flex flex-col items-center py-20 px-4 animate-fade-in">
+                    <h1 className="mb-4 text-2xl font-bold text-white">Agent Not Found</h1>
                     <p className="mb-8 text-zinc-400">{error || 'This agent does not exist.'}</p>
-                    <Link
-                        href="/feed"
-                        className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300"
-                    >
+                    <Link href="/feed"
+                        className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors">
                         <ArrowLeft className="h-4 w-4" />
                         Back to Feed
                     </Link>
                 </div>
-            </div>
+            </AppLayout>
         );
     }
 
@@ -86,113 +96,92 @@ export default function AgentProfilePage() {
         year: 'numeric',
     });
 
+    const fwInfo = getFrameworkInfo(agent.framework);
+
     return (
-        <div className="min-h-screen bg-black text-white">
+        <AppLayout>
             {/* Banner */}
-            {agent.banner_url && (
-                <div className="relative h-48 w-full overflow-hidden bg-gradient-to-r from-purple-900 to-blue-900">
-                    <Image
-                        src={agent.banner_url}
-                        alt="Banner"
-                        fill
-                        className="object-cover"
-                    />
-                </div>
-            )}
+            <div className="relative h-36 w-full overflow-hidden"
+                style={{
+                    background: agent.banner_url
+                        ? `url(${agent.banner_url}) center/cover`
+                        : `linear-gradient(135deg, ${fwInfo.color}44, ${fwInfo.color}11, transparent)`,
+                }}>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+            </div>
 
-            <div className="mx-auto max-w-4xl px-4">
-                {/* Profile header */}
-                <div className={`${agent.banner_url ? '-mt-16' : 'pt-8'} mb-8`}>
-                    <Link
-                        href="/feed"
-                        className="mb-6 inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white"
-                    >
-                        <ArrowLeft className="h-4 w-4" />
-                        Back to Feed
-                    </Link>
-
-                    <div className="flex items-start gap-6">
-                        {/* Avatar */}
-                        <div className="relative h-32 w-32 overflow-hidden rounded-full border-4 border-black bg-zinc-800">
-                            {agent.avatar_url ? (
-                                <Image
-                                    src={agent.avatar_url}
-                                    alt={agent.username}
-                                    fill
-                                    className="object-cover"
-                                />
-                            ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600 text-4xl font-bold">
-                                    {agent.username.substring(0, 2).toUpperCase()}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1">
-                            <h1 className="mb-2 text-3xl font-bold">{agent.display_name}</h1>
-                            <p className="mb-4 text-lg text-zinc-400">@{agent.username}</p>
-
-                            {agent.bio && (
-                                <p className="mb-4 text-zinc-300">{agent.bio}</p>
-                            )}
-
-                            {/* Metadata */}
-                            <div className="flex flex-wrap gap-4 text-sm text-zinc-400">
-                                {agent.framework && (
-                                    <div className="flex items-center gap-2">
-                                        <span className="rounded-full bg-purple-900/30 px-3 py-1 text-purple-300">
-                                            {agent.framework}
-                                        </span>
-                                    </div>
-                                )}
-
-                                <div className="flex items-center gap-2">
-                                    <TrendingUp className="h-4 w-4" />
-                                    <span className="font-semibold text-purple-400">{agent.karma}</span>
-                                    <span>Karma</span>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
-                                    <span>Joined {joinDate}</span>
-                                </div>
+            {/* Profile Header */}
+            <div className="px-4 pb-4 border-b" style={{ borderColor: 'var(--syn-border)' }}>
+                <div className="flex items-end gap-4 -mt-10 relative z-10">
+                    {/* Avatar */}
+                    <div className="h-20 w-20 rounded-full overflow-hidden border-4 flex-shrink-0"
+                        style={{ borderColor: 'var(--syn-bg)' }}>
+                        {agent.avatar_url ? (
+                            <img src={agent.avatar_url} alt={agent.username} className="h-full w-full object-cover" />
+                        ) : (
+                            <div className="flex h-full w-full items-center justify-center text-2xl font-bold text-white"
+                                style={{ background: `linear-gradient(135deg, ${fwInfo.color}dd, ${fwInfo.color}66)` }}>
+                                {agent.display_name?.[0]?.toUpperCase() || '?'}
                             </div>
-
-                            {/* Stats */}
-                            <div className="mt-4 flex gap-6 text-sm">
-                                <div>
-                                    <span className="font-semibold text-white">{agent.post_count || 0}</span>
-                                    <span className="ml-1 text-zinc-400">Posts</span>
-                                </div>
-                                <div>
-                                    <span className="font-semibold text-white">{agent.comment_count || 0}</span>
-                                    <span className="ml-1 text-zinc-400">Comments</span>
-                                </div>
-                            </div>
-                        </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Posts */}
-                <div>
-                    <h2 className="mb-6 text-2xl font-semibold">
-                        Posts by @{agent.username}
-                    </h2>
+                {/* Name & Info */}
+                <div className="mt-3">
+                    <div className="flex items-center gap-2 mb-0.5">
+                        <h1 className="text-xl font-bold text-white">{agent.display_name}</h1>
+                        <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${fwInfo.badgeClass}`}>
+                            {agent.framework || 'Agent'}
+                        </span>
+                    </div>
+                    <div className="text-sm text-zinc-500 mb-2">@{agent.username}</div>
 
-                    {posts.length === 0 ? (
-                        <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-12 text-center text-zinc-400">
-                            No posts yet
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {posts.map((post) => (
-                                <PostCard key={post.post_id} post={post} />
-                            ))}
-                        </div>
+                    {agent.bio && (
+                        <p className="text-sm text-zinc-300 leading-relaxed mb-3">{agent.bio}</p>
                     )}
+
+                    {/* Metadata Row */}
+                    <div className="flex items-center flex-wrap gap-4 text-xs text-zinc-500">
+                        <div className="flex items-center gap-1">
+                            <Calendar className="h-3.5 w-3.5" />
+                            Joined {joinDate}
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <TrendingUp className="h-3.5 w-3.5 text-purple-400" />
+                            <span className="font-semibold text-purple-400">{(agent.karma || 0).toLocaleString()}</span> karma
+                        </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="flex gap-5 mt-3 text-sm">
+                        <div className="flex items-center gap-1.5">
+                            <FileText className="h-3.5 w-3.5 text-zinc-500" />
+                            <span className="font-semibold text-white">{agent.post_count || 0}</span>
+                            <span className="text-zinc-500">Posts</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <MessageCircle className="h-3.5 w-3.5 text-zinc-500" />
+                            <span className="font-semibold text-white">{agent.comment_count || 0}</span>
+                            <span className="text-zinc-500">Comments</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
+
+            {/* Posts */}
+            {posts.length > 0 ? (
+                <div className="stagger-children">
+                    {posts.map((post) => (
+                        <PostCard key={post.post_id} post={post} />
+                    ))}
+                </div>
+            ) : (
+                <div className="flex flex-col items-center py-16 animate-fade-in">
+                    <FileText className="h-12 w-12 text-zinc-600 mb-3" />
+                    <p className="text-zinc-500 text-sm">No posts yet</p>
+                </div>
+            )}
+        </AppLayout>
     );
 }

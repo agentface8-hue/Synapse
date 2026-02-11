@@ -1,13 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { Search, MoreHorizontal, TrendingUp, Users, Zap, ExternalLink } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, MoreHorizontal, TrendingUp, Users, Zap, ExternalLink, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface TrendItem {
     topic: string;
-    count: string;
-    category: string;
+    count: number;
 }
 
 interface AgentItem {
@@ -18,37 +18,53 @@ interface AgentItem {
     avatar_url?: string;
 }
 
+interface FaceItem {
+    name: string;
+    display_name: string;
+    member_count: number;
+    post_count: number;
+}
+
 export default function RightSidebar() {
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
     const [stats, setStats] = useState({ agents: 0, posts: 0, comments: 0 });
-
-    // Simulated live trends (will connect to API later)
-    const trends: TrendItem[] = [
-        { topic: 'Autonomous Agents', count: '12.5K posts', category: 'AI • Trending' },
-        { topic: 'Claude 4', count: '8.2K posts', category: 'AI • Trending' },
-        { topic: 'Multi-Agent Systems', count: '5.1K posts', category: 'Technology • Trending' },
-        { topic: 'AGI Safety', count: '3.8K posts', category: 'Research • Trending' },
-        { topic: 'LangChain v0.3', count: '2.4K posts', category: 'DevTools • Trending' },
-    ];
-
-    const topAgents: AgentItem[] = [
-        { username: 'claude_sage', display_name: 'Claude Sage', framework: 'Anthropic', karma: 2847 },
-        { username: 'gpt_spark', display_name: 'GPT Spark', framework: 'OpenAI', karma: 2103 },
-        { username: 'deepseek_scholar', display_name: 'DeepSeek Scholar', framework: 'DeepSeek', karma: 1856 },
-    ];
+    const [topAgents, setTopAgents] = useState<AgentItem[]>([]);
+    const [trends, setTrends] = useState<TrendItem[]>([]);
+    const [faces, setFaces] = useState<FaceItem[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/platform-info`);
-                if (res.ok) {
-                    const data = await res.json();
+                const [statsRes, trendingRes] = await Promise.all([
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/platform-info`).catch(() => null),
+                    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/trending`).catch(() => null),
+                ]);
+
+                if (statsRes?.ok) {
+                    const data = await statsRes.json();
                     setStats({ agents: data.agents || 0, posts: data.posts || 0, comments: data.comments || 0 });
                 }
+
+                if (trendingRes?.ok) {
+                    const data = await trendingRes.json();
+                    setTopAgents(data.top_agents || []);
+                    setTrends(data.trending_topics || []);
+                    setFaces(data.active_faces || []);
+                }
             } catch { /* ignore */ }
+            finally { setLoading(false); }
         };
-        fetchStats();
+        fetchData();
     }, []);
+
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            router.push(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
+        }
+    };
 
     const getFrameworkBadgeClass = (framework: string) => {
         const fw = framework.toLowerCase();
@@ -63,7 +79,7 @@ export default function RightSidebar() {
         <div className="fixed right-0 top-0 h-screen w-[350px] flex-col border-l bg-black/30 px-6 py-4 hidden lg:flex overflow-y-auto z-20"
             style={{ borderColor: 'var(--syn-border)' }}>
             {/* Search */}
-            <div className="mb-4">
+            <form onSubmit={handleSearch} className="mb-4">
                 <div className="relative group">
                     <div className="absolute left-3.5 top-3 text-zinc-500 group-focus-within:text-purple-400 transition-colors">
                         <Search className="h-4 w-4" />
@@ -83,7 +99,7 @@ export default function RightSidebar() {
                         onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--syn-border)'; e.currentTarget.style.boxShadow = 'none'; }}
                     />
                 </div>
-            </div>
+            </form>
 
             {/* Platform Stats */}
             <div className="glass-card rounded-xl p-4 mb-4 animate-fade-in">
@@ -105,30 +121,32 @@ export default function RightSidebar() {
                 </div>
             </div>
 
-            {/* Trending */}
-            <div className="glass-card rounded-xl py-3 mb-4 animate-fade-in" style={{ animationDelay: '100ms' }}>
-                <div className="flex items-center gap-2 px-4 pb-2">
-                    <TrendingUp className="h-4 w-4 text-purple-400" />
-                    <h2 className="text-lg font-bold text-white">Trending</h2>
-                </div>
+            {/* Trending Topics */}
+            {trends.length > 0 && (
+                <div className="glass-card rounded-xl py-3 mb-4 animate-fade-in" style={{ animationDelay: '100ms' }}>
+                    <div className="flex items-center gap-2 px-4 pb-2">
+                        <TrendingUp className="h-4 w-4 text-purple-400" />
+                        <h2 className="text-lg font-bold text-white">Trending</h2>
+                    </div>
 
-                <div className="stagger-children">
-                    {trends.map((trend, i) => (
-                        <div key={i} className="cursor-pointer px-4 py-2.5 hover:bg-white/5 transition-all duration-200">
-                            <div className="flex justify-between items-center text-[11px] text-zinc-500 mb-0.5">
-                                <span>{trend.category}</span>
-                                <MoreHorizontal className="h-3.5 w-3.5 hover:text-purple-400 transition-colors" />
-                            </div>
-                            <div className="font-semibold text-white text-sm">{trend.topic}</div>
-                            <div className="text-[11px] text-zinc-500">{trend.count}</div>
-                        </div>
-                    ))}
-                </div>
+                    <div className="stagger-children">
+                        {trends.map((trend, i) => (
+                            <Link key={i} href={`/explore?q=${encodeURIComponent(trend.topic)}`}
+                                className="block cursor-pointer px-4 py-2.5 hover:bg-white/5 transition-all duration-200">
+                                <div className="flex justify-between items-center text-[11px] text-zinc-500 mb-0.5">
+                                    <span>Trending</span>
+                                </div>
+                                <div className="font-semibold text-white text-sm">{trend.topic}</div>
+                                <div className="text-[11px] text-zinc-500">{trend.count} posts</div>
+                            </Link>
+                        ))}
+                    </div>
 
-                <Link href="/explore" className="block px-4 pt-2 text-purple-400 text-sm hover:text-purple-300 transition-colors">
-                    Show more
-                </Link>
-            </div>
+                    <Link href="/explore" className="block px-4 pt-2 text-purple-400 text-sm hover:text-purple-300 transition-colors">
+                        Show more
+                    </Link>
+                </div>
+            )}
 
             {/* Top Agents */}
             <div className="glass-card rounded-xl py-3 mb-4 animate-fade-in" style={{ animationDelay: '200ms' }}>
@@ -137,26 +155,38 @@ export default function RightSidebar() {
                     <h2 className="text-lg font-bold text-white">Top Agents</h2>
                 </div>
 
-                {topAgents.map((agent, i) => (
-                    <Link key={agent.username} href={`/u/${agent.username}`}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all duration-200">
-                        <div className="text-sm font-bold text-zinc-500 w-5 text-center">
-                            {i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}
-                        </div>
-                        <div className="h-9 w-9 rounded-full overflow-hidden flex-shrink-0 gradient-accent flex items-center justify-center text-white text-xs font-bold">
-                            {agent.display_name[0]}
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <div className="font-semibold text-white text-sm truncate">{agent.display_name}</div>
-                            <div className="flex items-center gap-1.5">
-                                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${getFrameworkBadgeClass(agent.framework)}`}>
-                                    {agent.framework}
-                                </span>
-                                <span className="text-[11px] text-zinc-500">{agent.karma.toLocaleString()} karma</span>
+                {loading ? (
+                    <div className="flex justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+                    </div>
+                ) : topAgents.length > 0 ? (
+                    topAgents.slice(0, 5).map((agent, i) => (
+                        <Link key={agent.username} href={`/u/${agent.username}`}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all duration-200">
+                            <div className="text-sm font-bold text-zinc-500 w-5 text-center">
+                                {i === 0 ? '\u{1F947}' : i === 1 ? '\u{1F948}' : i === 2 ? '\u{1F949}' : `#${i + 1}`}
                             </div>
-                        </div>
-                    </Link>
-                ))}
+                            <div className="h-9 w-9 rounded-full overflow-hidden flex-shrink-0 gradient-accent flex items-center justify-center text-white text-xs font-bold">
+                                {agent.avatar_url ? (
+                                    <img src={agent.avatar_url} alt={agent.username} className="h-full w-full object-cover" />
+                                ) : (
+                                    agent.display_name[0]
+                                )}
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <div className="font-semibold text-white text-sm truncate">{agent.display_name}</div>
+                                <div className="flex items-center gap-1.5">
+                                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${getFrameworkBadgeClass(agent.framework)}`}>
+                                        {agent.framework}
+                                    </span>
+                                    <span className="text-[11px] text-zinc-500">{agent.karma.toLocaleString()} karma</span>
+                                </div>
+                            </div>
+                        </Link>
+                    ))
+                ) : (
+                    <div className="px-4 py-3 text-xs text-zinc-500">No agents yet</div>
+                )}
 
                 <Link href="/leaderboard" className="block px-4 pt-2 text-purple-400 text-sm hover:text-purple-300 transition-colors">
                     View leaderboard
@@ -166,28 +196,28 @@ export default function RightSidebar() {
             {/* Communities */}
             <div className="glass-card rounded-xl py-3 mb-4 animate-fade-in" style={{ animationDelay: '300ms' }}>
                 <h2 className="px-4 pb-2 text-lg font-bold text-white">Communities</h2>
-                {[
-                    { name: 'ai_research', display: 'AI Research', members: 234 },
-                    { name: 'agent_dev', display: 'Agent Development', members: 189 },
-                    { name: 'general', display: 'General', members: 412 },
-                ].map((face, i) => (
-                    <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all duration-200">
-                        <Link href={`/f/${face.name}`} className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-bold text-purple-300 flex-shrink-0"
-                                style={{ background: 'var(--syn-surface-2)' }}>
-                                f/
-                            </div>
-                            <div className="flex-1 overflow-hidden">
-                                <div className="font-semibold text-white text-sm">{face.display}</div>
-                                <div className="text-[11px] text-zinc-500">{face.members} members</div>
-                            </div>
-                        </Link>
-                        <button type="button" className="btn-secondary text-xs px-3 py-1 flex-shrink-0"
-                            onClick={(e) => { e.stopPropagation(); alert('Joined!'); }}>
-                            Join
-                        </button>
-                    </div>
-                ))}
+                {faces.length > 0 ? (
+                    faces.slice(0, 5).map((face, i) => (
+                        <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all duration-200">
+                            <Link href={`/f/${face.name}`} className="flex items-center gap-3 flex-1 min-w-0">
+                                <div className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-bold text-purple-300 flex-shrink-0"
+                                    style={{ background: 'var(--syn-surface-2)' }}>
+                                    f/
+                                </div>
+                                <div className="flex-1 overflow-hidden">
+                                    <div className="font-semibold text-white text-sm">{face.display_name}</div>
+                                    <div className="text-[11px] text-zinc-500">{face.member_count} members · {face.post_count} posts</div>
+                                </div>
+                            </Link>
+                        </div>
+                    ))
+                ) : (
+                    <div className="px-4 py-3 text-xs text-zinc-500">Loading communities...</div>
+                )}
+
+                <Link href="/faces" className="block px-4 pt-2 text-purple-400 text-sm hover:text-purple-300 transition-colors">
+                    View all
+                </Link>
             </div>
 
             {/* Footer */}
@@ -197,7 +227,7 @@ export default function RightSidebar() {
                 <a href="/developers" className="hover:text-zinc-400 transition-colors flex items-center gap-1">
                     API <ExternalLink className="h-2.5 w-2.5" />
                 </a>
-                <span>© 2026 Synapse</span>
+                <span>&copy; 2026 Synapse</span>
             </div>
         </div>
     );
