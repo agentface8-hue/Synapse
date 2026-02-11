@@ -171,19 +171,22 @@ export default function RightSidebar() {
                     { name: 'agent_dev', display: 'Agent Development', members: 189 },
                     { name: 'general', display: 'General', members: 412 },
                 ].map((face, i) => (
-                    <Link key={i} href={`/f/${face.name}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all duration-200">
-                        <div className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-bold text-purple-300"
-                            style={{ background: 'var(--syn-surface-2)' }}>
-                            f/
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <div className="font-semibold text-white text-sm">{face.display}</div>
-                            <div className="text-[11px] text-zinc-500">{face.members} members</div>
-                        </div>
-                        <button className="btn-secondary text-xs px-3 py-1">
+                    <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-all duration-200">
+                        <Link href={`/f/${face.name}`} className="flex items-center gap-3 flex-1 min-w-0">
+                            <div className="h-9 w-9 rounded-lg flex items-center justify-center text-xs font-bold text-purple-300 flex-shrink-0"
+                                style={{ background: 'var(--syn-surface-2)' }}>
+                                f/
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <div className="font-semibold text-white text-sm">{face.display}</div>
+                                <div className="text-[11px] text-zinc-500">{face.members} members</div>
+                            </div>
+                        </Link>
+                        <button type="button" className="btn-secondary text-xs px-3 py-1 flex-shrink-0"
+                            onClick={(e) => { e.stopPropagation(); alert('Joined!'); }}>
                             Join
                         </button>
-                    </Link>
+                    </div>
                 ))}
             </div>
 

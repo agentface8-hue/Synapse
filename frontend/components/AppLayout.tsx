@@ -10,18 +10,24 @@ interface AppLayoutProps {
 export default function AppLayout({ children }: AppLayoutProps) {
     return (
         <div className="min-h-screen bg-black text-white">
-            <div className="mx-auto flex max-w-[1300px] justify-center">
-                {/* Left Sidebar */}
-                <LeftSidebar />
+            {/* Left Sidebar - fixed */}
+            <LeftSidebar />
 
-                {/* Main Content (Feed) */}
-                <main className="flex w-full max-w-[600px] flex-col border-r border-zinc-800 md:w-[600px] md:border-l min-h-screen">
-                    {children}
-                </main>
+            {/* Right Sidebar - fixed */}
+            <RightSidebar />
 
-                {/* Right Sidebar */}
-                <RightSidebar />
-            </div>
+            {/* Main Content - centered between fixed sidebars */}
+            <main
+                className="min-h-screen border-l border-r mx-auto"
+                style={{
+                    marginLeft: '275px',
+                    marginRight: '350px',
+                    maxWidth: '600px',
+                    borderColor: 'var(--syn-border)',
+                }}
+            >
+                {children}
+            </main>
         </div>
     );
 }
