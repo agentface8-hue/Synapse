@@ -1,8 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
-import { MessageCircle, Clock } from 'lucide-react';
+import { MessageCircle, Clock, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
 import VoteButtons from './VoteButtons';
 
 interface PostCardProps {
@@ -15,7 +14,11 @@ interface PostCardProps {
             display_name: string;
             avatar_url?: string;
             framework?: string;
-        };
+        } | null;
+        username: string;
+        display_name: string;
+        avatar_url?: string;
+        framework?: string;
         karma: number;
         comment_count: number;
         created_at: string;
@@ -28,183 +31,194 @@ interface PostCardProps {
 function getRelativeTime(dateString: string): string {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-    if (diffInSeconds < 60) return 'just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    return date.toLocaleDateString();
+    if (seconds < 60) return `${seconds}s ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function getFrameworkInfo(framework?: string): { label: string; badgeClass: string; dotColor: string } {
+    if (!framework) return { label: 'Agent', badgeClass: 'badge-custom', dotColor: '#ec4899' };
+    const fw = framework.toLowerCase();
+    if (fw.includes('claude') || fw.includes('anthropic')) return { label: 'Claude', badgeClass: 'badge-claude', dotColor: '#8b5cf6' };
+    if (fw.includes('gpt') || fw.includes('openai')) return { label: 'GPT', badgeClass: 'badge-gpt', dotColor: '#10b981' };
+    if (fw.includes('deepseek')) return { label: 'DeepSeek', badgeClass: 'badge-deepseek', dotColor: '#3b82f6' };
+    if (fw.includes('human')) return { label: 'Human', badgeClass: 'badge-human', dotColor: '#f59e0b' };
+    if (fw.includes('system')) return { label: 'System', badgeClass: 'badge-custom', dotColor: '#ec4899' };
+    return { label: framework, badgeClass: 'badge-custom', dotColor: '#ec4899' };
 }
 
 function renderMedia(url: string | null) {
     if (!url) return null;
 
-    // YouTube (Video & Shorts)
-    // Matches: youtube.com/watch?v=ID, youtu.be/ID, youtube.com/embed/ID, youtube.com/shorts/ID
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-    const ytMatch = url.match(youtubeRegex);
+    // YouTube
+    const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]+)/);
     if (ytMatch) {
         return (
-            <div className="mt-3 aspect-video w-full overflow-hidden rounded-xl border border-zinc-800">
+            <div className="mt-3 rounded-xl overflow-hidden" style={{ border: '1px solid var(--syn-border)' }}>
                 <iframe
-                    width="100%"
-                    height="100%"
                     src={`https://www.youtube.com/embed/${ytMatch[1]}`}
-                    title="YouTube video player"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    className="w-full aspect-video"
+                    allow="autoplay; encrypted-media"
                     allowFullScreen
-                ></iframe>
+                />
             </div>
         );
     }
 
     // TikTok
-    // TikTok embeds are tricky without an API or library (like react-tiktok).
-    // The standard iframe embed requires hitting their oembed endpoint to get the HTML, which is async.
-    // For a simple synchronous render, we can't easily do a full embed without a package.
-    // HOWEVER, we can at least make it look like a video card or use a standard iframe if we knew the video ID.
-    // Let's try to extract the video ID and use the standard embed URL if possible, or fallback to a styled link card.
-    // TikTok Embed URL format: https://www.tiktok.com/embed/v2/{video_id}
-
-    // Regex to capture video ID from: https://www.tiktok.com/@user/video/733182392...
-    const tiktokRegex = /tiktok\.com\/@[\w.-]+\/video\/(\d+)/;
-    const ttMatch = url.match(tiktokRegex);
+    const ttMatch = url.match(/tiktok\.com\/@[\w.]+\/video\/(\d+)/);
     if (ttMatch) {
         return (
-            <div className="mt-3 w-full overflow-hidden rounded-xl border border-zinc-800 bg-black">
+            <div className="mt-3 rounded-xl overflow-hidden" style={{ border: '1px solid var(--syn-border)' }}>
                 <iframe
-                    name={`tiktok-${ttMatch[1]}`}
-                    width="100%"
-                    height="600"
-                    src={`https://www.tiktok.com/embed/v2/${ttMatch[1]}?lang=en-US`}
-                    allow="encrypted-media;"
-                    className="border-0"
-                ></iframe>
+                    src={`https://www.tiktok.com/embed/v2/${ttMatch[1]}`}
+                    className="w-full"
+                    style={{ height: '500px' }}
+                    allowFullScreen
+                />
             </div>
         );
     }
 
-    // Image
-    if (url.match(/\.(jpeg|jpg|gif|png|webp)$/) || url.startsWith('http')) {
+    // Image URLs
+    if (/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(url)) {
         return (
-            <div className="mt-3 w-full overflow-hidden rounded-xl border border-zinc-800">
+            <div className="mt-3 rounded-xl overflow-hidden" style={{ border: '1px solid var(--syn-border)' }}>
                 <img src={url} alt="Post content" className="w-full object-cover max-h-[500px]" />
             </div>
         );
     }
 
+    // Generic URL preview
     return (
-        <a href={url} target="_blank" rel="noopener noreferrer" className="mt-2 block truncate text-purple-400 hover:underline">
-            {url}
+        <a href={url} target="_blank" rel="noopener noreferrer"
+            className="mt-3 flex items-center gap-2 rounded-lg p-3 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+            style={{ background: 'var(--syn-surface-2)', border: '1px solid var(--syn-border)' }}>
+            <span className="truncate flex-1">{url}</span>
+            <Share2 className="h-4 w-4 flex-shrink-0" />
         </a>
     );
 }
 
 export default function PostCard({ post, compact = false }: PostCardProps) {
-    const contentPreview = post.content.length > 200
-        ? post.content.substring(0, 200) + '...'
-        : post.content;
+    const author = post.author || {
+        username: post.username,
+        display_name: post.display_name,
+        avatar_url: post.avatar_url,
+        framework: post.framework,
+    };
+
+    const fwInfo = getFrameworkInfo(author.framework);
+    const time = getRelativeTime(post.created_at);
+
+    // Extract URL from content
+    const urlMatch = post.content?.match(/https?:\/\/[^\s]+/);
+    const mediaUrl = post.url || (urlMatch ? urlMatch[0] : null);
 
     return (
-        <div className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 transition-all hover:border-purple-500/30 hover:bg-zinc-800/80">
-            <div className="flex gap-4">
-                {/* Vote buttons */}
-                <div className="flex-shrink-0">
-                    <VoteButtons
-                        itemType="post"
-                        itemId={post.post_id}
-                        initialKarma={post.karma}
-                    />
+        <article className="group border-b transition-colors duration-200 hover:bg-white/[0.02]"
+            style={{ borderColor: 'var(--syn-border)' }}>
+            <div className="flex gap-3 px-4 py-4">
+                {/* Vote Buttons (left side) */}
+                <div className="flex flex-col items-center pt-1">
+                    <VoteButtons itemType="post" itemId={post.post_id} initialKarma={post.karma} />
                 </div>
 
-                {/* Content */}
+                {/* Main Content */}
                 <div className="flex-1 min-w-0">
-                    {/* Author info */}
-                    <div className="mb-2 flex items-center gap-2">
-                        <Link
-                            href={`/u/${post.author.username}`}
-                            className="flex items-center gap-2 hover:underline"
-                        >
-                            <div className="relative h-6 w-6 overflow-hidden rounded-full bg-zinc-800">
-                                {post.author.avatar_url ? (
-                                    <Image
-                                        src={post.author.avatar_url}
-                                        alt={post.author.username}
-                                        fill
-                                        className="object-cover"
-                                    />
+                    {/* Author Row */}
+                    <div className="flex items-center gap-2 mb-1.5">
+                        <Link href={`/u/${author.username}`} className="flex-shrink-0">
+                            <div className="h-9 w-9 rounded-full overflow-hidden relative">
+                                {author.avatar_url ? (
+                                    <img src={author.avatar_url} alt={author.username} className="h-full w-full object-cover" />
                                 ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600 text-xs font-bold">
-                                        {post.author.username.substring(0, 2).toUpperCase()}
+                                    <div className="flex h-full w-full items-center justify-center text-white font-bold text-xs"
+                                        style={{ background: `linear-gradient(135deg, ${fwInfo.dotColor}dd, ${fwInfo.dotColor}88)` }}>
+                                        {author.display_name?.[0]?.toUpperCase() || '?'}
                                     </div>
                                 )}
+                                {/* Online dot */}
+                                <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2"
+                                    style={{ backgroundColor: fwInfo.dotColor, borderColor: 'var(--syn-bg)' }} />
                             </div>
-                            <span className="text-sm font-medium text-white">
-                                {post.author.display_name}
-                            </span>
-                            <span className="text-sm text-zinc-500">@{post.author.username}</span>
                         </Link>
 
-                        <span className="text-zinc-700">•</span>
-
-                        <div className="flex items-center gap-1 text-xs text-zinc-500">
-                            <Clock className="h-3 w-3" />
-                            {getRelativeTime(post.created_at)}
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                            <Link href={`/u/${author.username}`} className="font-semibold text-white text-sm hover:underline truncate">
+                                {author.display_name}
+                            </Link>
+                            <span className="text-zinc-500 text-sm truncate">@{author.username}</span>
+                            <span className="text-zinc-600 text-xs">·</span>
+                            <span className="text-zinc-500 text-xs flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {time}
+                            </span>
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium leading-none ${fwInfo.badgeClass}`}>
+                                {fwInfo.label}
+                            </span>
                         </div>
 
-                        {post.author.framework && (
-                            <>
-                                <span className="text-zinc-700">•</span>
-                                <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-400">
-                                    {post.author.framework}
-                                </span>
-                            </>
-                        )}
+                        <button className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full hover:bg-white/10">
+                            <MoreHorizontal className="h-4 w-4 text-zinc-500" />
+                        </button>
                     </div>
 
-                    {/* Post title and content */}
-                    <Link href={`/posts/${post.post_id}`} className="block">
-                        <h3 className="mb-2 text-lg font-semibold text-white group-hover:text-purple-400 transition-colors">
-                            {post.title}
-                        </h3>
-                        {!compact && (
-                            <>
-                                <p className="mb-3 text-sm text-zinc-400 line-clamp-3">
-                                    {contentPreview}
-                                </p>
-                                {post.url && <div onClick={e => e.stopPropagation()}>{renderMedia(post.url)}</div>}
-                            </>
-                        )}
-                    </Link>
-
-                    {/* Tags and metadata */}
-                    <div className="flex items-center gap-3">
-                        {post.tags && post.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                                {post.tags.slice(0, 3).map((tag) => (
-                                    <span
-                                        key={tag}
-                                        className="rounded-full bg-purple-900/30 px-2 py-1 text-xs text-purple-300"
-                                    >
-                                        #{tag}
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-
-                        <Link
-                            href={`/posts/${post.post_id}`}
-                            className="flex items-center gap-1 text-sm text-zinc-500 hover:text-purple-400 transition-colors"
-                        >
-                            <MessageCircle className="h-4 w-4" />
-                            <span>{post.comment_count} comments</span>
+                    {/* Title */}
+                    {post.title && (
+                        <Link href={`/posts/${post.post_id}`}>
+                            <h2 className="text-[15px] font-bold text-white leading-snug mb-1 hover:text-purple-300 transition-colors">
+                                {post.title}
+                            </h2>
                         </Link>
+                    )}
+
+                    {/* Content */}
+                    {post.content && (
+                        <div className="text-sm text-zinc-300 leading-relaxed mb-1">
+                            {compact && post.content.length > 200
+                                ? post.content.substring(0, 200) + '...'
+                                : post.content}
+                        </div>
+                    )}
+
+                    {/* Media */}
+                    {renderMedia(mediaUrl)}
+
+                    {/* Tags */}
+                    {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                            {post.tags.map((tag, i) => (
+                                <span key={i} className="text-xs px-2 py-0.5 rounded-full text-purple-300"
+                                    style={{ background: 'var(--syn-accent-glow)' }}>
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Actions Bar */}
+                    <div className="flex items-center gap-6 mt-3 -ml-2">
+                        <Link href={`/posts/${post.post_id}`}
+                            className="flex items-center gap-1.5 text-zinc-500 hover:text-purple-400 transition-colors group/action rounded-full px-2 py-1.5 hover:bg-purple-500/10">
+                            <MessageCircle className="h-4 w-4" />
+                            <span className="text-xs">{post.comment_count || 0}</span>
+                        </Link>
+
+                        <button className="flex items-center gap-1.5 text-zinc-500 hover:text-blue-400 transition-colors rounded-full px-2 py-1.5 hover:bg-blue-500/10">
+                            <Share2 className="h-4 w-4" />
+                        </button>
+
+                        <button className="flex items-center gap-1.5 text-zinc-500 hover:text-yellow-400 transition-colors rounded-full px-2 py-1.5 hover:bg-yellow-500/10">
+                            <Bookmark className="h-4 w-4" />
+                        </button>
                     </div>
                 </div>
             </div>
-        </div>
+        </article>
     );
 }

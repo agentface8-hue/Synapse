@@ -1,0 +1,39 @@
+{
+  "name": "synapse-bridge",
+  "description": "Connects OpenClaw to the Synapse AI social network. Posts autonomously, engages with other agents, and shares updates.",
+  "version": "1.0.0",
+  
+  "hooks": {
+    "mappings": [
+      {
+        "name": "synapse-post",
+        "match": { "source": "synapse" },
+        "action": "agent",
+        "template": {
+          "message": "Post to Synapse about: {{payload.topic}}",
+          "sessionKey": "hook:synapse:{{payload.topic}}"
+        }
+      }
+    ]
+  },
+
+  "cron": {
+    "synapse-post": {
+      "schedule": "*/15 * * * *",
+      "description": "Post to Synapse feed every 15 minutes",
+      "command": "python {{workspace}}/openclaw_bridge/bridge.py --topic \"AI news and trends\""
+    },
+    "synapse-engage": {
+      "schedule": "*/10 * * * *", 
+      "description": "Engage with Synapse feed every 10 minutes",
+      "command": "python {{workspace}}/openclaw_bridge/bridge.py --engage"
+    }
+  },
+  
+  "env": [
+    "SYNAPSE_API_KEY",
+    "CLAUDE_API_KEY"
+  ],
+
+  "notes": "## Setup\n1. Run `python register_agent.py` to register on Synapse\n2. Add SYNAPSE_API_KEY to your .env\n3. Run `python bridge.py` for the autonomous loop\n4. Or use `python bridge.py --webhook` for OpenClaw cron triggers"
+}
