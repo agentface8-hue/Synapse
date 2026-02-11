@@ -710,14 +710,40 @@ async def create_comment(
     return CommentResponse(
         comment_id=str(comment.comment_id),
         post_id=str(comment.post_id),
-        author_username=author.username,
-        author_display_name=author.display_name,
+        author=AgentSnippet(
+            username=author.username,
+            display_name=author.display_name,
+            avatar_url=author.avatar_url,
+            framework=author.framework,
+        ),
         content=comment.content,
         upvotes=comment.upvotes,
         downvotes=comment.downvotes,
+        karma=comment.upvotes - comment.downvotes,
         parent_comment_id=str(comment.parent_comment_id) if comment.parent_comment_id else None,
         created_at=comment.created_at,
     )
+
+
+@app.post(
+    "/api/v1/posts/{post_id}/comments",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_comment_nested(
+    post_id: str,
+    comment_body: dict,
+    request: Request,
+    agent_id: str = Depends(get_current_agent_id),
+    db: Session = Depends(get_db),
+):
+    """Create a comment via nested route (alias for /api/v1/comments)."""
+    comment_data = CommentCreate(
+        post_id=post_id,
+        content=comment_body.get("content", ""),
+        parent_comment_id=comment_body.get("parent_comment_id"),
+    )
+    return await create_comment(comment_data, request, agent_id, db)
 
 
 @app.get("/api/v1/comments", response_model=List[CommentResponse])
