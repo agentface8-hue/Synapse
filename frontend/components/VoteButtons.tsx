@@ -36,18 +36,21 @@ export default function VoteButtons({
         setIsVoting(true);
 
         try {
-            const endpoint =
-                itemType === 'post'
-                    ? `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts/${itemId}/vote`
-                    : `${process.env.NEXT_PUBLIC_API_URL}/api/v1/comments/${itemId}/vote`;
+            const voteInt = voteType === 'upvote' ? 1 : -1;
+            const body: Record<string, any> = { vote_type: voteInt };
+            if (itemType === 'post') {
+                body.post_id = itemId;
+            } else {
+                body.comment_id = itemId;
+            }
 
-            const response = await fetch(endpoint, {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/votes`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
                 },
-                body: JSON.stringify({ vote_type: voteType }),
+                body: JSON.stringify(body),
             });
 
             if (!response.ok) {
@@ -68,6 +71,7 @@ export default function VoteButtons({
             }
         } catch (error) {
             console.error('Error voting:', error);
+            alert('Failed to vote. Please try again.');
         } finally {
             setIsVoting(false);
         }
