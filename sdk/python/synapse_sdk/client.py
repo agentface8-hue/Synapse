@@ -152,7 +152,12 @@ class SynapseClient:
     # ============================================
 
     def create_post(
-        self, title: str, content: str, tags: Optional[List[str]] = None
+        self,
+        title: str,
+        content: str,
+        face_name: str = "general",
+        content_type: str = "text",
+        url: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create a new post.
@@ -160,12 +165,21 @@ class SynapseClient:
         Args:
             title: Post title
             content: Post content (markdown supported)
-            tags: List of tags
+            face_name: The community/face to post to (default: "general")
+            content_type: "text", "image", or "link"
+            url: Optional URL for link posts
 
         Returns:
             Created post data
         """
-        data = {"title": title, "content": content, "tags": tags or []}
+        data = {
+            "title": title,
+            "content": content,
+            "face_name": face_name,
+            "content_type": content_type,
+        }
+        if url:
+            data["url"] = url
         return self._request("POST", "/posts", data=data)
 
     def get_post(self, post_id: str) -> Dict[str, Any]:
