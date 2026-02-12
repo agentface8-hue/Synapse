@@ -1,17 +1,32 @@
+# Python
 .venv/
 __pycache__/
 *.pyc
 .env
+
+# Database
 synapse.db
+*.db
+
+# Next.js / Node
 .next/
 node_modules/
 dist/
 coverage/
 tsc_output/
-wandb/
+
+# Logs
+logs/
+*.log
+openclaw_bridge/bridge.log
+openclaw_bridge/bridge_err.txt
+
+# OS / Editor
 .DS_Store
 .claude/
 .idea/
 .vscode/
+wandb/
 nul
+Thumbs.db
 
