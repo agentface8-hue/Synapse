@@ -4,17 +4,23 @@ FastAPI backend for AI agent social network.
 """
 from uuid import UUID
 import os
+import re as _re
+import hashlib
+import hmac
+import secrets
+import threading
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 import redis
+import requests as http_requests
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
 from app.core.security import (
@@ -36,6 +42,8 @@ from app.models.comment import Comment
 from app.models.face import Face
 from app.models.post import Post
 from app.models.vote import Vote
+from app.models.webhook import Webhook
+from app.models.subscription import Subscription
 
 # ============================================
 # CONFIGURATION
@@ -78,11 +86,47 @@ class AgentResponse(BaseModel):
     karma: int
     post_count: int
     comment_count: int
+    follower_count: int = 0
+    following_count: int = 0
     created_at: datetime
     human_verified: bool
 
     class Config:
         from_attributes = True
+
+
+class WebhookCreate(BaseModel):
+    """Schema for registering a webhook."""
+    url: str = Field(..., max_length=2000)
+    events: List[str] = Field(..., min_length=1)
+
+    @field_validator("events")
+    @classmethod
+    def validate_events(cls, v):
+        valid = {"post.created", "comment.on_my_post", "mention", "vote.on_my_post", "new_follower"}
+        for event in v:
+            if event not in valid:
+                raise ValueError(f"Invalid event '{event}'. Valid: {', '.join(valid)}")
+        return v
+
+
+class WebhookResponse(BaseModel):
+    """Schema for webhook data."""
+    webhook_id: str
+    url: str
+    events: List[str]
+    active: bool
+    failure_count: int
+    created_at: datetime
+
+
+class SubscriptionResponse(BaseModel):
+    """Schema for subscription data."""
+    username: str
+    display_name: str
+    avatar_url: Optional[str] = None
+    framework: Optional[str] = None
+    followed_at: datetime
 
 
 class AgentAuthResponse(BaseModel):
@@ -226,6 +270,59 @@ class FaceResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ============================================
+# WEBHOOK + MENTION UTILITIES
+# ============================================
+
+
+def parse_mentions(content: str) -> List[str]:
+    """Extract @username mentions from content."""
+    return list(set(_re.findall(r'@([a-zA-Z0-9_]{3,50})', content)))
+
+
+def fire_webhooks(db_session_factory, event: str, agent_id: str, payload: dict):
+    """Fire webhooks for an event in a background thread. Non-blocking."""
+    def _fire():
+        db = db_session_factory()
+        try:
+            webhooks = (
+                db.query(Webhook)
+                .filter(
+                    Webhook.agent_id == agent_id,
+                    Webhook.active == True,
+                )
+                .all()
+            )
+            for wh in webhooks:
+                if event not in wh.event_list:
+                    continue
+                try:
+                    body = {"event": event, "data": payload, "timestamp": datetime.utcnow().isoformat()}
+                    signature = hmac.new(wh.secret.encode(), str(body).encode(), hashlib.sha256).hexdigest()
+                    http_requests.post(
+                        wh.url,
+                        json=body,
+                        headers={"X-Synapse-Signature": signature, "Content-Type": "application/json"},
+                        timeout=5,
+                    )
+                    wh.failure_count = 0
+                except Exception:
+                    wh.failure_count += 1
+                    if wh.failure_count >= 10:
+                        wh.active = False
+            db.commit()
+        except Exception:
+            pass
+        finally:
+            db.close()
+    threading.Thread(target=_fire, daemon=True).start()
+
+
+def fire_webhooks_for_target(db_session_factory, event: str, target_agent_id: str, payload: dict):
+    """Fire webhooks registered by target_agent_id for an event."""
+    fire_webhooks(db_session_factory, event, target_agent_id, payload)
 
 
 # ============================================
@@ -414,15 +511,33 @@ async def register_agent(
     )
 
 
+class LoginRequest(BaseModel):
+    """Schema for login credentials."""
+    username: str
+    api_key: str
+
+
 @app.post("/api/v1/agents/login")
 async def login_agent(
-    username: str,
-    api_key: str,
     request: Request,
+    body: Optional[LoginRequest] = None,
+    username: Optional[str] = None,
+    api_key: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    """Authenticate an agent and get a new JWT token."""
-    agent = db.query(Agent).filter(Agent.username == username).first()
+    """Authenticate an agent and get a new JWT token. Accepts JSON body or query params."""
+    # Support both JSON body and query params
+    login_username = (body.username if body else None) or username
+    login_api_key = (body.api_key if body else None) or api_key
+
+    if not login_username or not login_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="username and api_key are required",
+        )
+
+    agent = db.query(Agent).filter(Agent.username == login_username).first()
+
     if not agent:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -435,7 +550,7 @@ async def login_agent(
             detail=f"Agent is banned: {agent.ban_reason}",
         )
 
-    if not verify_api_key(api_key, agent.api_key_hash):
+    if not verify_api_key(login_api_key, agent.api_key_hash):
         log_security_event(
             db,
             agent_id=str(agent.agent_id),
@@ -476,7 +591,12 @@ async def get_current_agent(
     agent = db.query(Agent).filter(Agent.agent_id == agent_id).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    return agent
+    follower_count = db.query(Subscription).filter(Subscription.following_id == agent.agent_id).count()
+    following_count = db.query(Subscription).filter(Subscription.follower_id == agent.agent_id).count()
+    resp = AgentResponse.model_validate(agent)
+    resp.follower_count = follower_count
+    resp.following_count = following_count
+    return resp
 
 
 @app.put("/api/v1/agents/me/profile", response_model=AgentResponse)
@@ -531,7 +651,13 @@ async def list_agents(
         query = query.order_by(desc(Agent.last_active))
 
     agents = query.offset(offset).limit(limit).all()
-    return agents
+    results = []
+    for agent in agents:
+        resp = AgentResponse.model_validate(agent)
+        resp.follower_count = db.query(Subscription).filter(Subscription.following_id == agent.agent_id).count()
+        resp.following_count = db.query(Subscription).filter(Subscription.follower_id == agent.agent_id).count()
+        results.append(resp)
+    return results
 
 
 @app.get("/api/v1/agents/{username}", response_model=AgentResponse)
@@ -540,7 +666,12 @@ async def get_agent_by_username(username: str, db: Session = Depends(get_db)):
     agent = db.query(Agent).filter(Agent.username == username).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    return agent
+    follower_count = db.query(Subscription).filter(Subscription.following_id == agent.agent_id).count()
+    following_count = db.query(Subscription).filter(Subscription.follower_id == agent.agent_id).count()
+    resp = AgentResponse.model_validate(agent)
+    resp.follower_count = follower_count
+    resp.following_count = following_count
+    return resp
 
 
 # ============================================
@@ -601,6 +732,27 @@ async def create_post(
         resource_id=str(post.post_id),
         ip_address=request.client.host if request.client else None,
     )
+
+    # Fire webhooks for @mentions in post content
+    from app.database import SessionLocal
+    mentioned_usernames = parse_mentions(post.content + " " + post.title)
+    for mu in mentioned_usernames:
+        mentioned_agent = db.query(Agent).filter(Agent.username == mu).first()
+        if mentioned_agent and str(mentioned_agent.agent_id) != agent_id:
+            fire_webhooks_for_target(SessionLocal, "mention", str(mentioned_agent.agent_id), {
+                "post_id": str(post.post_id),
+                "title": post.title,
+                "mentioned_by": {"username": author.username, "display_name": author.display_name},
+            })
+
+    # Fire webhooks for followers (post.created event)
+    follower_subs = db.query(Subscription).filter(Subscription.following_id == agent_id).all()
+    for fs in follower_subs:
+        fire_webhooks_for_target(SessionLocal, "post.created", str(fs.follower_id), {
+            "post_id": str(post.post_id),
+            "title": post.title,
+            "author": {"username": author.username, "display_name": author.display_name},
+        })
 
     return PostResponse(
         post_id=str(post.post_id),
@@ -773,6 +925,28 @@ async def create_comment(
     db.refresh(comment)
 
     author = db.query(Agent).filter(Agent.agent_id == agent_id).first()
+
+    # Fire webhook: comment.on_my_post — notify post author
+    from app.database import SessionLocal
+    if str(post.author_agent_id) != agent_id:
+        fire_webhooks_for_target(SessionLocal, "comment.on_my_post", str(post.author_agent_id), {
+            "post_id": str(post.post_id),
+            "comment_id": str(comment.comment_id),
+            "content": comment.content[:200],
+            "author": {"username": author.username, "display_name": author.display_name} if author else {},
+        })
+
+    # Fire webhook: mention — for @username in comment content
+    mentioned_usernames = parse_mentions(comment.content)
+    for mu in mentioned_usernames:
+        mentioned_agent = db.query(Agent).filter(Agent.username == mu).first()
+        if mentioned_agent and str(mentioned_agent.agent_id) != agent_id:
+            fire_webhooks_for_target(SessionLocal, "mention", str(mentioned_agent.agent_id), {
+                "post_id": str(post.post_id),
+                "comment_id": str(comment.comment_id),
+                "content": comment.content[:200],
+                "mentioned_by": {"username": author.username, "display_name": author.display_name} if author else {},
+            })
 
     return CommentResponse(
         comment_id=str(comment.comment_id),
@@ -1165,6 +1339,319 @@ async def get_trending(db: Session = Depends(get_db)):
         ],
         "hot_post_count": len(hot_posts),
     }
+
+
+# ============================================
+# ROUTES: WEBHOOKS
+# ============================================
+
+
+@app.post("/api/v1/webhooks", status_code=status.HTTP_201_CREATED)
+async def register_webhook(
+    webhook_data: WebhookCreate,
+    agent_id: str = Depends(get_current_agent_id),
+    db: Session = Depends(get_db),
+):
+    """Register a webhook URL for real-time event notifications."""
+    # Limit to 5 webhooks per agent
+    count = db.query(Webhook).filter(Webhook.agent_id == agent_id).count()
+    if count >= 5:
+        raise HTTPException(status_code=400, detail="Maximum 5 webhooks per agent")
+
+    secret = secrets.token_hex(32)
+    webhook = Webhook(
+        agent_id=agent_id,
+        url=webhook_data.url,
+        secret=secret,
+        events=",".join(webhook_data.events),
+    )
+    db.add(webhook)
+    db.commit()
+    db.refresh(webhook)
+
+    return {
+        "webhook_id": str(webhook.webhook_id),
+        "url": webhook.url,
+        "events": webhook.event_list,
+        "secret": secret,  # Only shown once
+        "active": webhook.active,
+        "created_at": webhook.created_at.isoformat(),
+    }
+
+
+@app.get("/api/v1/webhooks")
+async def list_webhooks(
+    agent_id: str = Depends(get_current_agent_id),
+    db: Session = Depends(get_db),
+):
+    """List your registered webhooks."""
+    webhooks = db.query(Webhook).filter(Webhook.agent_id == agent_id).all()
+    return [
+        {
+            "webhook_id": str(wh.webhook_id),
+            "url": wh.url,
+            "events": wh.event_list,
+            "active": wh.active,
+            "failure_count": wh.failure_count,
+            "created_at": wh.created_at.isoformat(),
+        }
+        for wh in webhooks
+    ]
+
+
+@app.delete("/api/v1/webhooks/{webhook_id}", status_code=204)
+async def delete_webhook(
+    webhook_id: str,
+    agent_id: str = Depends(get_current_agent_id),
+    db: Session = Depends(get_db),
+):
+    """Delete a webhook."""
+    webhook = db.query(Webhook).filter(
+        Webhook.webhook_id == webhook_id,
+        Webhook.agent_id == agent_id,
+    ).first()
+    if not webhook:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    db.delete(webhook)
+    db.commit()
+
+
+# ============================================
+# ROUTES: SUBSCRIPTIONS (Follow/Unfollow)
+# ============================================
+
+
+@app.post("/api/v1/agents/{username}/follow", status_code=status.HTTP_201_CREATED)
+async def follow_agent(
+    username: str,
+    agent_id: str = Depends(get_current_agent_id),
+    db: Session = Depends(get_db),
+):
+    """Follow an agent."""
+    target = db.query(Agent).filter(Agent.username == username).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if str(target.agent_id) == agent_id:
+        raise HTTPException(status_code=400, detail="Cannot follow yourself")
+
+    existing = db.query(Subscription).filter(
+        Subscription.follower_id == agent_id,
+        Subscription.following_id == target.agent_id,
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Already following")
+
+    sub = Subscription(follower_id=agent_id, following_id=target.agent_id)
+    db.add(sub)
+    db.commit()
+
+    # Fire webhook for new follower
+    from app.database import SessionLocal
+    follower = db.query(Agent).filter(Agent.agent_id == agent_id).first()
+    fire_webhooks_for_target(SessionLocal, "new_follower", str(target.agent_id), {
+        "follower": {"username": follower.username, "display_name": follower.display_name} if follower else {},
+    })
+
+    return {"detail": f"Now following @{username}"}
+
+
+@app.delete("/api/v1/agents/{username}/follow", status_code=200)
+async def unfollow_agent(
+    username: str,
+    agent_id: str = Depends(get_current_agent_id),
+    db: Session = Depends(get_db),
+):
+    """Unfollow an agent."""
+    target = db.query(Agent).filter(Agent.username == username).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    sub = db.query(Subscription).filter(
+        Subscription.follower_id == agent_id,
+        Subscription.following_id == target.agent_id,
+    ).first()
+    if not sub:
+        raise HTTPException(status_code=400, detail="Not following")
+
+    db.delete(sub)
+    db.commit()
+    return {"detail": f"Unfollowed @{username}"}
+
+
+@app.get("/api/v1/agents/{username}/followers")
+async def get_followers(
+    username: str,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """List agents who follow this agent."""
+    target = db.query(Agent).filter(Agent.username == username).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    subs = (
+        db.query(Subscription)
+        .filter(Subscription.following_id == target.agent_id)
+        .order_by(desc(Subscription.created_at))
+        .offset(offset).limit(limit)
+        .all()
+    )
+    followers = []
+    for s in subs:
+        agent = db.query(Agent).filter(Agent.agent_id == s.follower_id).first()
+        if agent:
+            followers.append({
+                "username": agent.username,
+                "display_name": agent.display_name,
+                "avatar_url": agent.avatar_url,
+                "framework": agent.framework,
+                "followed_at": s.created_at.isoformat(),
+            })
+    return {"followers": followers, "count": len(followers)}
+
+
+@app.get("/api/v1/agents/{username}/following")
+async def get_following(
+    username: str,
+    limit: int = 50,
+    offset: int = 0,
+    db: Session = Depends(get_db),
+):
+    """List agents this agent follows."""
+    target = db.query(Agent).filter(Agent.username == username).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    subs = (
+        db.query(Subscription)
+        .filter(Subscription.follower_id == target.agent_id)
+        .order_by(desc(Subscription.created_at))
+        .offset(offset).limit(limit)
+        .all()
+    )
+    following = []
+    for s in subs:
+        agent = db.query(Agent).filter(Agent.agent_id == s.following_id).first()
+        if agent:
+            following.append({
+                "username": agent.username,
+                "display_name": agent.display_name,
+                "avatar_url": agent.avatar_url,
+                "framework": agent.framework,
+                "followed_at": s.created_at.isoformat(),
+            })
+    return {"following": following, "count": len(following)}
+
+
+# ============================================
+# ROUTES: ACTIVITY FEED
+# ============================================
+
+
+@app.get("/api/v1/agents/me/activity")
+async def get_activity(
+    limit: int = 25,
+    agent_id: str = Depends(get_current_agent_id),
+    db: Session = Depends(get_db),
+):
+    """Get personalized activity feed: comments on your posts, mentions, new posts from followed agents."""
+    limit = min(limit, 100)
+    activities = []
+
+    # 1. Comments on your posts
+    my_posts = db.query(Post.post_id).filter(Post.author_agent_id == agent_id).subquery()
+    recent_comments = (
+        db.query(Comment)
+        .filter(
+            Comment.post_id.in_(my_posts),
+            Comment.author_agent_id != agent_id,
+            Comment.is_removed == False,
+        )
+        .order_by(desc(Comment.created_at))
+        .limit(limit)
+        .all()
+    )
+    for c in recent_comments:
+        author = db.query(Agent).filter(Agent.agent_id == c.author_agent_id).first()
+        activities.append({
+            "type": "comment_on_your_post",
+            "post_id": str(c.post_id),
+            "comment_id": str(c.comment_id),
+            "content": c.content[:200],
+            "author": {"username": author.username, "display_name": author.display_name} if author else {},
+            "created_at": c.created_at.isoformat(),
+        })
+
+    # 2. Posts from agents you follow
+    following_ids = (
+        db.query(Subscription.following_id)
+        .filter(Subscription.follower_id == agent_id)
+        .subquery()
+    )
+    followed_posts = (
+        db.query(Post)
+        .filter(
+            Post.author_agent_id.in_(following_ids),
+            Post.is_removed == False,
+        )
+        .order_by(desc(Post.created_at))
+        .limit(limit)
+        .all()
+    )
+    for p in followed_posts:
+        author = db.query(Agent).filter(Agent.agent_id == p.author_agent_id).first()
+        activities.append({
+            "type": "followed_agent_post",
+            "post_id": str(p.post_id),
+            "title": p.title,
+            "author": {"username": author.username, "display_name": author.display_name} if author else {},
+            "created_at": p.created_at.isoformat(),
+        })
+
+    # 3. Mentions (search for @username in recent posts/comments)
+    me = db.query(Agent).filter(Agent.agent_id == agent_id).first()
+    if me:
+        mention_pattern = f"%@{me.username}%"
+        mention_posts = (
+            db.query(Post)
+            .filter(Post.content.ilike(mention_pattern), Post.is_removed == False, Post.author_agent_id != agent_id)
+            .order_by(desc(Post.created_at))
+            .limit(10)
+            .all()
+        )
+        for p in mention_posts:
+            author = db.query(Agent).filter(Agent.agent_id == p.author_agent_id).first()
+            activities.append({
+                "type": "mention_in_post",
+                "post_id": str(p.post_id),
+                "title": p.title,
+                "content": p.content[:200],
+                "author": {"username": author.username, "display_name": author.display_name} if author else {},
+                "created_at": p.created_at.isoformat(),
+            })
+
+        mention_comments = (
+            db.query(Comment)
+            .filter(Comment.content.ilike(mention_pattern), Comment.is_removed == False, Comment.author_agent_id != agent_id)
+            .order_by(desc(Comment.created_at))
+            .limit(10)
+            .all()
+        )
+        for c in mention_comments:
+            author = db.query(Agent).filter(Agent.agent_id == c.author_agent_id).first()
+            activities.append({
+                "type": "mention_in_comment",
+                "post_id": str(c.post_id),
+                "comment_id": str(c.comment_id),
+                "content": c.content[:200],
+                "author": {"username": author.username, "display_name": author.display_name} if author else {},
+                "created_at": c.created_at.isoformat(),
+            })
+
+    # Sort all activities by creation time
+    activities.sort(key=lambda x: x["created_at"], reverse=True)
+    return {"activities": activities[:limit]}
 
 
 # ============================================

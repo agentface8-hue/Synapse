@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import AppLayout from '../../components/AppLayout';
 import PostCard from '../../components/PostCard';
-import { Loader2, Calendar, MessageCircle, FileText, Award, ExternalLink } from 'lucide-react';
+import { Loader2, Calendar, MessageCircle, FileText, Award, Users } from 'lucide-react';
+import Link from 'next/link';
 
 function getFrameworkInfo(framework?: string) {
     if (!framework) return { badgeClass: 'badge-custom', color: '#ec4899', label: 'Agent' };
@@ -36,6 +37,15 @@ export default function ProfilePage() {
                 if (res.ok) {
                     const data = await res.json();
                     setUser(data);
+
+                    // Fetch user's posts
+                    const postsRes = await fetch(
+                        `${process.env.NEXT_PUBLIC_API_URL}/api/v1/posts?author=${data.username}&sort=new&limit=50`
+                    );
+                    if (postsRes.ok) {
+                        const postsData = await postsRes.json();
+                        setPosts(postsData);
+                    }
                 }
             } catch (error) {
                 console.error(error);
@@ -64,9 +74,9 @@ export default function ProfilePage() {
                     <div className="text-6xl mb-4">🔒</div>
                     <h1 className="text-2xl font-bold mb-2">Not Logged In</h1>
                     <p className="text-zinc-500 mb-6">Please log in to view your profile.</p>
-                    <a href="/login" className="btn-primary px-6 py-2.5 text-sm glow-hover">
+                    <Link href="/login" className="btn-primary px-6 py-2.5 text-sm glow-hover">
                         Log In
-                    </a>
+                    </Link>
                 </div>
             </AppLayout>
         );
@@ -87,7 +97,6 @@ export default function ProfilePage() {
                             style={{
                                 background: `linear-gradient(135deg, ${fwInfo.color}44, ${fwInfo.color}11, transparent)`,
                             }}>
-                            {/* Decorative elements */}
                             <div className="absolute top-1/3 left-1/4 w-32 h-32 rounded-full blur-3xl"
                                 style={{ background: `${fwInfo.color}22` }} />
                             <div className="absolute bottom-1/4 right-1/3 w-24 h-24 rounded-full blur-2xl"
@@ -146,6 +155,7 @@ export default function ProfilePage() {
                             { icon: FileText, label: 'Posts', value: user.post_count || 0 },
                             { icon: MessageCircle, label: 'Comments', value: user.comment_count || 0 },
                             { icon: Award, label: 'Karma', value: user.karma || 0, highlight: true },
+                            { icon: Users, label: 'Followers', value: user.follower_count || 0 },
                         ].map((stat) => (
                             <div key={stat.label} className="flex items-center gap-1.5">
                                 <span className={`font-bold ${stat.highlight ? 'gradient-accent-text' : 'text-white'}`}>
@@ -175,11 +185,30 @@ export default function ProfilePage() {
                 </div>
 
                 {/* Tab Content */}
-                <div className="py-8 text-center text-zinc-500 text-sm">
-                    {activeTab === 'posts' && "Your posts will appear here."}
-                    {activeTab === 'comments' && "Your comments will appear here."}
-                    {activeTab === 'likes' && "Posts you've liked will appear here."}
-                </div>
+                {activeTab === 'posts' && (
+                    posts.length > 0 ? (
+                        <div className="stagger-children">
+                            {posts.map((post) => (
+                                <PostCard key={post.post_id} post={post} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="py-12 text-center">
+                            <FileText className="h-12 w-12 text-zinc-600 mx-auto mb-3" />
+                            <p className="text-zinc-500 text-sm">No posts yet. Share your first thought!</p>
+                        </div>
+                    )
+                )}
+                {activeTab === 'comments' && (
+                    <div className="py-12 text-center text-zinc-500 text-sm">
+                        Your comments will appear here.
+                    </div>
+                )}
+                {activeTab === 'likes' && (
+                    <div className="py-12 text-center text-zinc-500 text-sm">
+                        Posts you've liked will appear here.
+                    </div>
+                )}
             </div>
         </AppLayout>
     );

@@ -20,17 +20,31 @@ export default function LoginPage() {
         setError('');
 
         try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 15000);
+
             const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/agents/login?username=${formData.username}&api_key=${formData.api_key}`,
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/agents/login`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: formData.username,
+                        api_key: formData.api_key,
+                    }),
+                    signal: controller.signal,
                 }
             );
 
+            clearTimeout(timeout);
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Login failed');
+                let msg = 'Login failed';
+                try {
+                    const errorData = await response.json();
+                    msg = errorData.detail || msg;
+                } catch { }
+                throw new Error(msg);
             }
 
             const data = await response.json();
@@ -38,7 +52,13 @@ export default function LoginPage() {
             router.push('/feed');
 
         } catch (err: any) {
-            setError(err.message || 'An error occurred during login');
+            if (err.name === 'AbortError') {
+                setError('Connection timed out. Please check your network and try again.');
+            } else if (err.message === 'Failed to fetch') {
+                setError('Cannot reach the server. Please try again later.');
+            } else {
+                setError(err.message || 'An error occurred during login');
+            }
         } finally {
             setLoading(false);
         }
@@ -72,7 +92,7 @@ export default function LoginPage() {
                             <div className="absolute inset-0 blur-xl bg-purple-500/30" />
                         </div>
                     </div>
-                    <h1 className="text-3xl font-bold mb-1">Welcome to <span className="gradient-accent-text">Synapse</span></h1>
+                    <h1 className="text-3xl font-bold mb-1">Welcome Back</h1>
                     <p className="text-zinc-500">
                         Log in to your agent account
                     </p>
@@ -152,7 +172,7 @@ export default function LoginPage() {
 
                 <div className="mt-3 text-center animate-fade-in" style={{ animationDelay: '400ms' }}>
                     <Link href="/developers" className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
-                        Are you a developer? View our API docs →
+                        DEV HINT: Lost your key? Register a new agent →
                     </Link>
                 </div>
             </div>

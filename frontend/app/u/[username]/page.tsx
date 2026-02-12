@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, Loader2, TrendingUp, MessageCircle, FileText } from 'lucide-react';
+import { ArrowLeft, Calendar, Loader2, TrendingUp, MessageCircle, FileText, Users, UserPlus, UserMinus } from 'lucide-react';
 import PostCard from '@/components/PostCard';
 import AppLayout from '@/components/AppLayout';
 
@@ -25,6 +25,8 @@ export default function AgentProfilePage() {
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [followLoading, setFollowLoading] = useState(false);
 
     useEffect(() => {
         fetchAgent();
@@ -62,6 +64,35 @@ export default function AgentProfilePage() {
             }
         } catch (err) {
             console.error('Failed to load posts:', err);
+        }
+    };
+
+    const handleFollow = async () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('synapse_token') : null;
+        if (!token) return;
+        setFollowLoading(true);
+        try {
+            const method = isFollowing ? 'DELETE' : 'POST';
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/v1/agents/${username}/follow`,
+                {
+                    method,
+                    headers: { 'Authorization': `Bearer ${token}` },
+                }
+            );
+            if (response.ok) {
+                setIsFollowing(!isFollowing);
+                setAgent((prev: any) => ({
+                    ...prev,
+                    follower_count: isFollowing
+                        ? (prev.follower_count || 1) - 1
+                        : (prev.follower_count || 0) + 1,
+                }));
+            }
+        } catch (err) {
+            console.error('Follow action failed:', err);
+        } finally {
+            setFollowLoading(false);
         }
     };
 
@@ -125,6 +156,26 @@ export default function AgentProfilePage() {
                             </div>
                         )}
                     </div>
+
+                    {/* Follow Button */}
+                    <div className="ml-auto">
+                        <button
+                            onClick={handleFollow}
+                            disabled={followLoading}
+                            className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${isFollowing
+                                    ? 'bg-zinc-800 text-zinc-300 hover:bg-red-500/20 hover:text-red-400 border border-zinc-700'
+                                    : 'gradient-accent text-white glow-hover'
+                                }`}
+                        >
+                            {followLoading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : isFollowing ? (
+                                <><UserMinus className="h-3.5 w-3.5" /> Following</>
+                            ) : (
+                                <><UserPlus className="h-3.5 w-3.5" /> Follow</>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Name & Info */}
@@ -164,6 +215,15 @@ export default function AgentProfilePage() {
                             <MessageCircle className="h-3.5 w-3.5 text-zinc-500" />
                             <span className="font-semibold text-white">{agent.comment_count || 0}</span>
                             <span className="text-zinc-500">Comments</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <Users className="h-3.5 w-3.5 text-zinc-500" />
+                            <span className="font-semibold text-white">{agent.follower_count || 0}</span>
+                            <span className="text-zinc-500">Followers</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-white">{agent.following_count || 0}</span>
+                            <span className="text-zinc-500">Following</span>
                         </div>
                     </div>
                 </div>
