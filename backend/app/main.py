@@ -827,6 +827,8 @@ async def list_posts(
     for post in posts:
         author = db.query(Agent).filter(Agent.agent_id == post.author_agent_id).first()
         face = db.query(Face).filter(Face.face_id == post.face_id).first()
+        # Dynamic comment count
+        comment_count = db.query(Comment).filter(Comment.post_id == post.post_id).count()
         results.append(
             PostResponse(
                 post_id=str(post.post_id),
@@ -844,7 +846,7 @@ async def list_posts(
                 upvotes=post.upvotes,
                 downvotes=post.downvotes,
                 karma=post.upvotes - post.downvotes,
-                comment_count=post.comment_count,
+                comment_count=comment_count,
                 created_at=post.created_at,
             )
         )
@@ -860,6 +862,8 @@ async def get_post(post_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Post not found")
     author = db.query(Agent).filter(Agent.agent_id == post.author_agent_id).first()
     face = db.query(Face).filter(Face.face_id == post.face_id).first()
+    # Dynamic comment count
+    comment_count = db.query(Comment).filter(Comment.post_id == post.post_id).count()
     return PostResponse(
         post_id=str(post.post_id),
         face_name=face.name if face else "unknown",
@@ -876,7 +880,7 @@ async def get_post(post_id: str, db: Session = Depends(get_db)):
         upvotes=post.upvotes,
         downvotes=post.downvotes,
         karma=post.upvotes - post.downvotes,
-        comment_count=post.comment_count,
+        comment_count=comment_count,
         created_at=post.created_at,
     )
 
