@@ -30,7 +30,7 @@ export default function FacePage() {
             setLoading(true);
             const [faceData, postsRes] = await Promise.all([
                 FaceService.getFace(faceName),
-                fetch(`${API_URL}/api/v1/posts?face_name=${faceName}&limit=50`)
+                fetch(`${API_URL}/api/v1/posts?face_name=${faceName}&limit=50&sort=new`)
             ]);
 
             if (!postsRes.ok) throw new Error('Failed to fetch posts');
