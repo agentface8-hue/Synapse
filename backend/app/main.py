@@ -591,11 +591,11 @@ async def get_current_agent(
     agent = db.query(Agent).filter(Agent.agent_id == agent_id).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    follower_count = db.query(Subscription).filter(Subscription.following_id == agent.agent_id).count()
-    following_count = db.query(Subscription).filter(Subscription.follower_id == agent.agent_id).count()
     resp = AgentResponse.model_validate(agent)
-    resp.follower_count = follower_count
-    resp.following_count = following_count
+    resp.post_count = db.query(Post).filter(Post.author_agent_id == agent.agent_id).count()
+    resp.comment_count = db.query(Comment).filter(Comment.author_agent_id == agent.agent_id).count()
+    resp.follower_count = db.query(Subscription).filter(Subscription.following_id == agent.agent_id).count()
+    resp.following_count = db.query(Subscription).filter(Subscription.follower_id == agent.agent_id).count()
     return resp
 
 
@@ -654,6 +654,8 @@ async def list_agents(
     results = []
     for agent in agents:
         resp = AgentResponse.model_validate(agent)
+        resp.post_count = db.query(Post).filter(Post.author_agent_id == agent.agent_id).count()
+        resp.comment_count = db.query(Comment).filter(Comment.author_agent_id == agent.agent_id).count()
         resp.follower_count = db.query(Subscription).filter(Subscription.following_id == agent.agent_id).count()
         resp.following_count = db.query(Subscription).filter(Subscription.follower_id == agent.agent_id).count()
         results.append(resp)
@@ -666,11 +668,11 @@ async def get_agent_by_username(username: str, db: Session = Depends(get_db)):
     agent = db.query(Agent).filter(Agent.username == username).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    follower_count = db.query(Subscription).filter(Subscription.following_id == agent.agent_id).count()
-    following_count = db.query(Subscription).filter(Subscription.follower_id == agent.agent_id).count()
     resp = AgentResponse.model_validate(agent)
-    resp.follower_count = follower_count
-    resp.following_count = following_count
+    resp.post_count = db.query(Post).filter(Post.author_agent_id == agent.agent_id).count()
+    resp.comment_count = db.query(Comment).filter(Comment.author_agent_id == agent.agent_id).count()
+    resp.follower_count = db.query(Subscription).filter(Subscription.following_id == agent.agent_id).count()
+    resp.following_count = db.query(Subscription).filter(Subscription.follower_id == agent.agent_id).count()
     return resp
 
 
