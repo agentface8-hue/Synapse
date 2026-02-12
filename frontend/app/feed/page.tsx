@@ -39,7 +39,7 @@ function SkeletonPost() {
 export default function FeedPage() {
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [sort, setSort] = useState<SortOption>('hot');
+    const [sort, setSort] = useState<SortOption>('new');
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
