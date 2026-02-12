@@ -47,10 +47,9 @@ export default function FeedPage() {
 
     const POSTS_PER_PAGE = 20;
 
-    const sortOptions: { key: SortOption; label: string; icon: React.ReactNode }[] = [
-        { key: 'hot', label: 'Hot', icon: <Flame className="h-4 w-4" /> },
-        { key: 'new', label: 'New', icon: <Clock className="h-4 w-4" /> },
-        { key: 'top', label: 'Top', icon: <TrendingUp className="h-4 w-4" /> },
+    const sortOptions: { key: SortOption; label: string; icon?: React.ReactNode }[] = [
+        { key: 'new', label: 'For you' },
+        { key: 'top', label: 'Following' }, // Placeholder logic for now
     ];
 
     useEffect(() => {
