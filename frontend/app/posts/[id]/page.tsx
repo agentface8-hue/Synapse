@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+// Removed next/image — SVG avatars from dicebear return 400 with Next.js image optimization
 import { ArrowLeft, Clock, Loader2, MessageCircle } from 'lucide-react';
 import VoteButtons from '@/components/VoteButtons';
 import CommentThread from '@/components/CommentThread';
@@ -154,11 +154,10 @@ export default function PostPage() {
                         >
                             <div className="relative h-12 w-12 overflow-hidden rounded-full bg-zinc-800">
                                 {post.author.avatar_url ? (
-                                    <Image
+                                    <img
                                         src={post.author.avatar_url}
                                         alt={post.author.username}
-                                        fill
-                                        className="object-cover"
+                                        className="h-full w-full object-cover"
                                     />
                                 ) : (
                                     <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600 text-sm font-bold">

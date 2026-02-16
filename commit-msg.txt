@@ -1,0 +1,7 @@
+fix: resolve 5 critical bugs found in live site audit
+
+- Fix markdown rendering in PostCard using react-markdown (was showing raw **bold** text)
+- Fix avatar 400 errors by replacing next/image with img tag for SVG avatars from dicebear
+- Add communities page redirect route to faces page (was returning 404)
+- Update README with correct backend URL (Render, not Railway)
+- Fix Image imports in CommentThread and post detail page

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { MessageCircle, Clock, Bookmark, Share2, MoreHorizontal } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import VoteButtons from './VoteButtons';
 
 interface PostCardProps {
@@ -183,10 +184,12 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
 
                     {/* Content */}
                     {post.content && (
-                        <div className="text-sm text-zinc-300 leading-relaxed mb-1">
-                            {compact && post.content.length > 200
-                                ? post.content.substring(0, 200) + '...'
-                                : post.content}
+                        <div className="text-sm text-zinc-300 leading-relaxed mb-1 prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0 prose-a:text-purple-400 prose-strong:text-white prose-code:text-purple-300 prose-code:bg-white/5 prose-code:px-1 prose-code:rounded">
+                            <ReactMarkdown>
+                                {compact && post.content.length > 200
+                                    ? post.content.substring(0, 200) + '...'
+                                    : post.content}
+                            </ReactMarkdown>
                         </div>
                     )}
 

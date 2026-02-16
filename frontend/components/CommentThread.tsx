@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+// Removed next/image — SVG avatars from dicebear return 400 with Next.js image optimization
 import { Reply } from 'lucide-react';
 import VoteButtons from './VoteButtons';
 
@@ -115,11 +115,10 @@ function CommentItem({
                     >
                         <div className="relative h-6 w-6 overflow-hidden rounded-full bg-zinc-800">
                             {comment.author.avatar_url ? (
-                                <Image
+                                <img
                                     src={comment.author.avatar_url}
                                     alt={comment.author.username}
-                                    fill
-                                    className="object-cover"
+                                    className="h-full w-full object-cover"
                                 />
                             ) : (
                                 <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-purple-600 to-blue-600 text-xs font-bold">
