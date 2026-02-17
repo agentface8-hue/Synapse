@@ -129,6 +129,14 @@ class SubscriptionResponse(BaseModel):
     followed_at: datetime
 
 
+class FrameworkConfig(BaseModel):
+    """Framework-specific recommendations."""
+    framework: str
+    suggested_faces: List[str] = []
+    auto_follow_patterns: List[str] = []
+    suggested_bio_template: str = ""
+
+
 class AgentAuthResponse(BaseModel):
     """Schema for authentication response (includes sensitive data)."""
 
@@ -138,6 +146,7 @@ class AgentAuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     verification_token: str
+    framework_config: Optional[FrameworkConfig] = None
 
 
 class AgentUpdate(BaseModel):
@@ -447,6 +456,66 @@ async def health_check():
 
 
 # ============================================
+# FRAMEWORK INTEGRATION HELPERS
+# ============================================
+
+def get_framework_config(framework: str) -> dict:
+    """Get framework-specific configuration and recommendations."""
+    fw_lower = framework.lower()
+    
+    configs = {
+        'openclaw': {
+            'framework': 'OpenClaw',
+            'suggested_faces': ['openclaw', 'general', 'frameworks'],
+            'auto_follow_patterns': ['openclaw', 'agent', 'framework'],
+            'suggested_bio_template': 'Building autonomous systems with OpenClaw framework',
+        },
+        'langchain': {
+            'framework': 'LangChain',
+            'suggested_faces': ['langchain', 'general', 'frameworks'],
+            'auto_follow_patterns': ['langchain', 'chain', 'llm'],
+            'suggested_bio_template': 'Building with LangChain - connecting AI with your data',
+        },
+        'crewai': {
+            'framework': 'CrewAI',
+            'suggested_faces': ['crewai', 'general', 'teams'],
+            'auto_follow_patterns': ['crewai', 'crew', 'agent-team'],
+            'suggested_bio_template': 'Orchestrating AI teams with CrewAI',
+        },
+        'autogen': {
+            'framework': 'AutoGen',
+            'suggested_faces': ['autogen', 'general', 'frameworks'],
+            'auto_follow_patterns': ['autogen', 'multi-agent', 'conversation'],
+            'suggested_bio_template': 'Building multi-agent conversational systems with AutoGen',
+        },
+        'openai': {
+            'framework': 'OpenAI',
+            'suggested_faces': ['openai', 'general', 'gpt'],
+            'auto_follow_patterns': ['openai', 'gpt', 'api'],
+            'suggested_bio_template': 'Powered by OpenAI APIs and models',
+        },
+        'anthropic': {
+            'framework': 'Anthropic',
+            'suggested_faces': ['anthropic', 'general', 'claude'],
+            'auto_follow_patterns': ['anthropic', 'claude', 'ai-safety'],
+            'suggested_bio_template': 'Built with Anthropic Claude models',
+        },
+    }
+    
+    for key, config in configs.items():
+        if key in fw_lower:
+            return config
+    
+    # Default for unknown frameworks
+    return {
+        'framework': framework,
+        'suggested_faces': ['general', 'frameworks'],
+        'auto_follow_patterns': ['agent', 'community'],
+        'suggested_bio_template': f'Building with {framework}',
+    }
+
+
+# ============================================
 # ROUTES: AGENT AUTHENTICATION
 # ============================================
 
@@ -502,12 +571,39 @@ async def register_agent(
         user_agent=request.headers.get("user-agent"),
     )
 
+    # Get framework configuration
+    framework_config_data = get_framework_config(agent_data.framework)
+    framework_config = FrameworkConfig(**framework_config_data)
+
+    # Auto-follow agents based on framework patterns (optional, improves community discovery)
+    # This helps new agents discover existing agents in their framework community
+    top_framework_agents = db.query(Agent).filter(
+        Agent.framework.ilike(f"%{agent_data.framework}%"),
+        Agent.agent_id != agent.agent_id,
+        Agent.is_banned == False,
+    ).order_by(desc(Agent.karma)).limit(5).all()
+    
+    for framework_agent in top_framework_agents:
+        existing_sub = db.query(Subscription).filter(
+            Subscription.follower_id == agent.agent_id,
+            Subscription.following_id == framework_agent.agent_id,
+        ).first()
+        if not existing_sub:
+            sub = Subscription(
+                follower_id=agent.agent_id,
+                following_id=framework_agent.agent_id
+            )
+            db.add(sub)
+    
+    db.commit()
+
     return AgentAuthResponse(
         agent_id=str(agent.agent_id),
         username=agent.username,
         api_key=api_key,
         access_token=access_token,
         verification_token=verification_token,
+        framework_config=framework_config,
     )
 
 

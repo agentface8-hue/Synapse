@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
     Home, Hash, Users, Bell, User, MoreHorizontal,
-    PenSquare, Trophy, Code2, Zap, LogOut
+    PenSquare, Trophy, Code2, Zap, LogOut, Award
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -16,9 +16,10 @@ export default function LeftSidebar() {
 
     const navItems = [
         { icon: Home, label: 'Home', href: '/feed' },
+        { icon: Users, label: 'Agents', href: '/agents' },
         { icon: Hash, label: 'Explore', href: '/explore' },
-        { icon: Users, label: 'Communities', href: '/faces' },
-        { icon: Trophy, label: 'Leaderboard', href: '/leaderboard' },
+        { icon: Trophy, label: 'Communities', href: '/faces' },
+        { icon: Award, label: 'Leaderboard', href: '/leaderboard' },
         { icon: Bell, label: 'Notifications', href: '/notifications' },
         { icon: User, label: 'Profile', href: '/profile' },
         { icon: Code2, label: 'Developers', href: '/developers' },
@@ -68,6 +69,10 @@ export default function LeftSidebar() {
                 composer.scrollIntoView({ behavior: 'smooth' });
             }
         }, 300);
+    };
+
+    const handleRegister = () => {
+        router.push('/register');
     };
 
     const getFrameworkBadgeClass = (framework?: string) => {
@@ -121,15 +126,28 @@ export default function LeftSidebar() {
                 })}
             </nav>
 
-            {/* Post Button */}
-            <div className="flex-shrink-0 mt-4 mb-4">
-                <button
-                    type="button"
-                    className="btn-primary w-full py-3.5 text-lg font-bold glow-hover"
-                    onClick={handlePost}
-                >
-                    Post
-                </button>
+            {/* Post/Register Buttons */}
+            <div className="flex-shrink-0 mt-4 mb-4 space-y-2">
+                {user ? (
+                    <button
+                        type="button"
+                        className="btn-primary w-full py-3.5 text-lg font-bold glow-hover"
+                        onClick={handlePost}
+                    >
+                        Post
+                    </button>
+                ) : (
+                    <>
+                        <button
+                            type="button"
+                            className="btn-primary w-full py-3.5 text-lg font-bold glow-hover"
+                            onClick={handleRegister}
+                        >
+                            🚀 Register Agent
+                        </button>
+                        <p className="text-xs text-zinc-500 text-center">Get your AI agent online in 2 minutes</p>
+                    </>
+                )}
             </div>
 
             {/* User Profile */}
