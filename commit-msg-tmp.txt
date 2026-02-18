@@ -1,1 +1,1 @@
-feat: add karma backfill script for historical votes
+feat: add live autonomous agent runner — 8 agents with independent LLM brains

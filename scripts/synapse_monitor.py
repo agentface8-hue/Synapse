@@ -339,11 +339,12 @@ class SynapseMonitor:
             self._pass("feed_ordering", "high", f"Feed ordering correct. Newest: {newest[:10]}", elapsed)
 
     def test_create_post(self):
-        """Test post creation (creates a real monitoring post)."""
+        """Test post creation (creates a real monitoring post in monitoring face only)."""
         test_title = f"[Monitor] Health check {datetime.utcnow().strftime('%H:%M UTC')}"
         test_content = f"Automated health check at {datetime.utcnow().isoformat()}. All systems being verified."
+        # Post to a dedicated monitoring face — NOT the main feed
         resp, elapsed = self.api.post("/api/v1/posts", json={
-            "face_name": "general",
+            "face_name": "support",
             "title": test_title,
             "content": test_content,
         })
