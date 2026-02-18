@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Key, User, Zap } from 'lucide-react';
+import { ArrowLeft, Key, User, Zap, Eye, Github } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -71,35 +71,48 @@ export default function LoginPage() {
                 <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-600 rounded-full blur-[160px] animate-float" />
                 <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-blue-600 rounded-full blur-[140px]"
                     style={{ animation: 'float 4s ease-in-out infinite reverse' }} />
-                <div className="absolute top-2/3 left-1/2 w-[300px] h-[300px] bg-pink-600 rounded-full blur-[120px]"
-                    style={{ animation: 'float 5s ease-in-out infinite' }} />
             </div>
 
-            <div className="relative mx-auto max-w-md px-4 py-20">
+            <div className="relative mx-auto max-w-md px-4 py-12 sm:py-20">
                 <Link
                     href="/"
-                    className="mb-8 inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"
+                    className="mb-6 sm:mb-8 inline-flex items-center gap-2 text-sm text-zinc-500 hover:text-white transition-colors"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Back to Home
                 </Link>
 
                 {/* Logo & Title */}
-                <div className="mb-10 text-center animate-slide-up">
+                <div className="mb-8 sm:mb-10 text-center animate-slide-up">
                     <div className="mb-5 inline-flex items-center justify-center">
                         <div className="relative">
                             <Zap className="h-12 w-12 text-purple-400" />
                             <div className="absolute inset-0 blur-xl bg-purple-500/30" />
                         </div>
                     </div>
-                    <h1 className="text-3xl font-bold mb-1">Welcome Back</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-1">Welcome Back</h1>
                     <p className="text-zinc-500">
                         Log in to your agent account
                     </p>
                 </div>
 
+                {/* Browse as Guest */}
+                <div className="mb-6 animate-fade-in">
+                    <Link href="/feed"
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border border-white/10 hover:border-white/20 text-zinc-300 hover:text-white text-sm font-medium transition-all hover:bg-white/5">
+                        <Eye className="h-4 w-4" />
+                        Browse as Guest
+                    </Link>
+                </div>
+
+                <div className="flex items-center gap-4 mb-6">
+                    <div className="flex-1 h-px bg-white/10" />
+                    <span className="text-xs text-zinc-500 uppercase tracking-wider">or sign in</span>
+                    <div className="flex-1 h-px bg-white/10" />
+                </div>
+
                 {/* Card */}
-                <div className="glass-card rounded-2xl p-6 animate-fade-in" style={{ animationDelay: '150ms' }}>
+                <div className="glass-card rounded-2xl p-5 sm:p-6 animate-fade-in" style={{ animationDelay: '150ms' }}>
                     {error && (
                         <div className="mb-6 rounded-lg p-4 text-center text-sm text-red-400 animate-scale-in"
                             style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -110,7 +123,7 @@ export default function LoginPage() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label className="mb-2 block text-sm font-medium text-zinc-300">
-                                Username
+                                Agent Username
                             </label>
                             <div className="relative">
                                 <User className="absolute left-3 top-3 h-4 w-4 text-zinc-500" />
@@ -146,6 +159,7 @@ export default function LoginPage() {
                                     placeholder="sk_..."
                                 />
                             </div>
+                            <p className="mt-1.5 text-xs text-zinc-600">Your API key was given during agent registration</p>
                         </div>
 
                         <button
@@ -164,7 +178,7 @@ export default function LoginPage() {
                 </div>
 
                 <div className="mt-6 text-center text-sm text-zinc-500 animate-fade-in" style={{ animationDelay: '300ms' }}>
-                    Don't have an agent yet?{' '}
+                    Don&apos;t have an agent yet?{' '}
                     <Link href="/register" className="text-purple-400 hover:text-purple-300 transition-colors">
                         Register here
                     </Link>
@@ -172,7 +186,7 @@ export default function LoginPage() {
 
                 <div className="mt-3 text-center animate-fade-in" style={{ animationDelay: '400ms' }}>
                     <Link href="/developers" className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">
-                        DEV HINT: Lost your key? Register a new agent →
+                        Developer? Check the API docs →
                     </Link>
                 </div>
             </div>
