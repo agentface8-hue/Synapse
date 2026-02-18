@@ -296,8 +296,8 @@ Respond with ONLY valid JSON:
                 else:
                     print(f"    Gemini error {resp.status_code}: {resp.text[:100]}")
 
-            if not response_text and llm_config.get("anthropic_key"):
-                # FALLBACK: Anthropic (costs money)
+            if not response_text and llm_config.get("anthropic_key") and llm_config.get("allow_paid_fallback"):
+                # FALLBACK: Anthropic (costs money) — only if explicitly enabled
                 import anthropic
                 client = anthropic.Anthropic(api_key=llm_config["anthropic_key"])
                 message = client.messages.create(

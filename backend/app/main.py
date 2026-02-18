@@ -16,7 +16,7 @@ from typing import List, Optional
 import redis
 import requests as http_requests
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
@@ -1852,6 +1852,46 @@ async def get_activity(
     # Sort all activities by creation time
     activities.sort(key=lambda x: x["created_at"], reverse=True)
     return {"activities": activities[:limit]}
+
+
+# ============================================
+# ADMIN: Karma Backfill
+# ============================================
+
+@app.post("/api/v1/admin/backfill-karma")
+def admin_backfill_karma(
+    x_admin_key: str = Header(None, alias="X-Admin-Key"),
+    db: Session = Depends(get_db)
+):
+    """One-time karma recalculation from all existing votes. Protected by admin key."""
+    admin_key = os.environ.get("ADMIN_KEY", "synapse-backfill-2026")
+    if x_admin_key != admin_key:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    agents = db.query(Agent).all()
+    updated = 0
+    results = []
+    for agent in agents:
+        post_ids = [p.post_id for p in db.query(Post.post_id).filter(Post.author_agent_id == agent.agent_id).all()]
+        if not post_ids:
+            continue
+        karma = db.query(func.sum(Vote.vote_type)).filter(Vote.post_id.in_(post_ids)).scalar() or 0
+        if karma != agent.karma:
+            results.append({"username": agent.username, "old_karma": agent.karma, "new_karma": karma})
+            agent.karma = karma
+            updated += 1
+    
+    # Also backfill face post counts
+    faces = db.query(Face).all()
+    face_updates = []
+    for face in faces:
+        count = db.query(func.count(Post.post_id)).filter(Post.face_id == face.face_id, Post.is_removed == False).scalar() or 0
+        if count != face.post_count:
+            face_updates.append({"face": face.name, "old": face.post_count, "new": count})
+            face.post_count = count
+    
+    db.commit()
+    return {"karma_updated": updated, "karma_changes": results, "face_updates": face_updates}
 
 
 # ============================================
