@@ -233,8 +233,8 @@ class AgentBrain:
         elapsed = (time.time() - self.last_action_time) / 60
         return elapsed >= self.profile.get("min_interval_minutes", 30)
 
-    def decide(self, feed_context: str, api_key: str) -> Optional[dict]:
-        """Ask the LLM what to do."""
+    def decide(self, feed_context: str, llm_config: dict) -> Optional[dict]:
+        """Ask the LLM what to do. Uses Gemini (free) by default, Anthropic as fallback."""
         if not self.should_act():
             return None
 
@@ -278,22 +278,44 @@ Respond with ONLY valid JSON:
 }}"""
 
         try:
-            import anthropic
-            client = anthropic.Anthropic(api_key=api_key)
-            message = client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=400,
-                temperature=0.8,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            response_text = message.content[0].text
-            # Extract JSON
-            start = response_text.find('{')
-            end = response_text.rfind('}') + 1
-            if start != -1 and end > start:
-                decision = json.loads(response_text[start:end])
-                self.last_action_time = time.time()
-                return decision
+            response_text = None
+            provider = llm_config.get("provider", "gemini")
+
+            if provider == "gemini" and llm_config.get("gemini_key"):
+                # FREE: Google Gemini Flash-Lite
+                resp = requests.post(
+                    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+                    params={"key": llm_config["gemini_key"]},
+                    json={"contents": [{"parts": [{"text": prompt}]}],
+                          "generationConfig": {"temperature": 0.8, "maxOutputTokens": 400}},
+                    timeout=30,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    response_text = data["candidates"][0]["content"]["parts"][0]["text"]
+                else:
+                    print(f"    Gemini error {resp.status_code}: {resp.text[:100]}")
+
+            if not response_text and llm_config.get("anthropic_key"):
+                # FALLBACK: Anthropic (costs money)
+                import anthropic
+                client = anthropic.Anthropic(api_key=llm_config["anthropic_key"])
+                message = client.messages.create(
+                    model="claude-sonnet-4-20250514",
+                    max_tokens=400,
+                    temperature=0.8,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                response_text = message.content[0].text
+                print(f"    ⚠️ Used Anthropic fallback (costs money)")
+
+            if response_text:
+                start = response_text.find('{')
+                end = response_text.rfind('}') + 1
+                if start != -1 and end > start:
+                    decision = json.loads(response_text[start:end])
+                    self.last_action_time = time.time()
+                    return decision
         except Exception as e:
             print(f"    Brain error for @{self.username}: {e}")
 
@@ -309,7 +331,11 @@ class AgentRunner:
         self.agents = {}
         self.clients = {}
         self.api_keys = self._load_keys()
-        self.anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+        self.llm_config = {
+            "provider": "gemini",  # FREE by default
+            "gemini_key": os.environ.get("GEMINI_API_KEY", ""),
+            "anthropic_key": os.environ.get("ANTHROPIC_API_KEY", ""),  # fallback only
+        }
         self.agent_filter = agent_filter
 
     def _load_keys(self) -> dict:
@@ -325,6 +351,13 @@ class AgentRunner:
         print(f"\n{'='*60}")
         print(f"  SYNAPSE LIVE AGENTS — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
         print(f"  API: {API_BASE}")
+        if self.llm_config["gemini_key"]:
+            print(f"  Brain: Gemini Flash-Lite (FREE)")
+        elif self.llm_config["anthropic_key"]:
+            print(f"  Brain: Anthropic Claude (PAID — set GEMINI_API_KEY for free)")
+        else:
+            print(f"  ❌ No LLM key set! Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY")
+            return
         print(f"{'='*60}\n")
 
         for username, profile in AGENT_PROFILES.items():
@@ -364,7 +397,7 @@ class AgentRunner:
             context = brain.build_context(feed, username)
 
             # Ask LLM what to do
-            decision = brain.decide(context, self.anthropic_key)
+            decision = brain.decide(context, self.llm_config)
 
             if not decision:
                 print(f"  💤 @{username} — no decision")

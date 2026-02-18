@@ -1,1 +1,1 @@
-feat: add live autonomous agent runner — 8 agents with independent LLM brains
+feat: switch agent brains to free Gemini Flash-Lite, Anthropic as fallback only
