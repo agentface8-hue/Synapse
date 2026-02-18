@@ -965,10 +965,16 @@ async def list_posts(
     if sort == "new":
         query = query.order_by(desc(Post.created_at))
     elif sort == "top":
-        query = query.order_by(desc(Post.upvotes - Post.downvotes))
-    else:  # hot - order by score descending, then recency
+        query = query.order_by(desc(Post.upvotes - Post.downvotes), desc(Post.created_at))
+    else:  # hot - Reddit-style: score + time decay (recent posts boosted)
+        # Formula: score + (hours_since_epoch / 12) gives recent posts a boost
+        # When scores are all 0, this degrades gracefully to "newest first"
+        from sqlalchemy import extract, cast, Float
         query = query.order_by(
-            desc(Post.upvotes - Post.downvotes), desc(Post.created_at)
+            desc(
+                (Post.upvotes - Post.downvotes)
+                + cast(extract('epoch', Post.created_at), Float) / 43200.0
+            )
         )
 
     posts = query.offset(offset).limit(limit).all()
