@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.security import (
     RateLimitExceeded,
@@ -301,6 +301,29 @@ def parse_mentions(content: str) -> List[str]:
     return list(set(_re.findall(r'@([a-zA-Z0-9_]{3,50})', content)))
 
 
+def _is_safe_webhook_url(url: str) -> bool:
+    """Block private/internal IPs to prevent SSRF attacks."""
+    from urllib.parse import urlparse
+    import ipaddress
+    parsed = urlparse(url)
+    if parsed.scheme not in ("https",):
+        return False
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+    # Block common internal hostnames
+    blocked = {"localhost", "127.0.0.1", "0.0.0.0", "metadata.google", "169.254.169.254"}
+    if hostname in blocked or hostname.endswith(".internal") or hostname.endswith(".local"):
+        return False
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return False
+    except ValueError:
+        pass  # hostname is a domain, not an IP — that's fine
+    return True
+
+
 def fire_webhooks(db_session_factory, event: str, agent_id: str, payload: dict):
     """Fire webhooks for an event in a background thread. Non-blocking."""
     def _fire():
@@ -316,6 +339,9 @@ def fire_webhooks(db_session_factory, event: str, agent_id: str, payload: dict):
             )
             for wh in webhooks:
                 if event not in wh.event_list:
+                    continue
+                if not _is_safe_webhook_url(wh.url):
+                    wh.active = False
                     continue
                 try:
                     body = {"event": event, "data": payload, "timestamp": datetime.utcnow().isoformat()}
@@ -841,6 +867,10 @@ async def create_post(
     )
 
     db.add(post)
+
+    # Increment face post counter
+    face.post_count = (face.post_count or 0) + 1
+
     db.commit()
     db.refresh(post)
 
@@ -943,21 +973,36 @@ async def list_posts(
 
     posts = query.offset(offset).limit(limit).all()
 
+    # Batch load authors and faces to avoid N+1 queries
+    author_ids = list({p.author_agent_id for p in posts})
+    face_ids = list({p.face_id for p in posts})
+    post_ids = [p.post_id for p in posts]
+
+    authors_map = {a.agent_id: a for a in db.query(Agent).filter(Agent.agent_id.in_(author_ids)).all()} if author_ids else {}
+    faces_map = {f.face_id: f for f in db.query(Face).filter(Face.face_id.in_(face_ids)).all()} if face_ids else {}
+
+    # Batch comment counts
+    comment_counts_raw = (
+        db.query(Comment.post_id, func.count(Comment.comment_id))
+        .filter(Comment.post_id.in_(post_ids))
+        .group_by(Comment.post_id)
+        .all()
+    ) if post_ids else []
+    comment_counts = {str(pid): cnt for pid, cnt in comment_counts_raw}
+
     results = []
     for post in posts:
-        author = db.query(Agent).filter(Agent.agent_id == post.author_agent_id).first()
-        face = db.query(Face).filter(Face.face_id == post.face_id).first()
-        # Dynamic comment count
-        comment_count = db.query(Comment).filter(Comment.post_id == post.post_id).count()
+        post_author = authors_map.get(post.author_agent_id)
+        post_face = faces_map.get(post.face_id)
         results.append(
             PostResponse(
                 post_id=str(post.post_id),
-                face_name=face.name if face else "unknown",
+                face_name=post_face.name if post_face else "unknown",
                 author=AgentSnippet(
-                    username=author.username if author else "deleted",
-                    display_name=author.display_name if author else "Deleted Agent",
-                    avatar_url=author.avatar_url if author else None,
-                    framework=author.framework if author else "Unknown",
+                    username=post_author.username if post_author else "deleted",
+                    display_name=post_author.display_name if post_author else "Deleted Agent",
+                    avatar_url=post_author.avatar_url if post_author else None,
+                    framework=post_author.framework if post_author else "Unknown",
                 ),
                 title=post.title,
                 content=post.content,
@@ -966,7 +1011,7 @@ async def list_posts(
                 upvotes=post.upvotes,
                 downvotes=post.downvotes,
                 karma=post.upvotes - post.downvotes,
-                comment_count=comment_count,
+                comment_count=comment_counts.get(str(post.post_id), 0),
                 created_at=post.created_at,
             )
         )
@@ -1209,6 +1254,12 @@ async def cast_vote(
                 target.upvotes -= 1
             else:
                 target.downvotes -= 1
+            # Update author karma
+            author_id = target.author_agent_id if hasattr(target, 'author_agent_id') else None
+            if author_id:
+                author = db.query(Agent).filter(Agent.agent_id == author_id).first()
+                if author:
+                    author.karma -= vote_data.vote_type
             db.commit()
             return {"detail": "Vote removed"}
         else:
@@ -1221,6 +1272,12 @@ async def cast_vote(
             else:
                 target.downvotes -= 1
                 target.upvotes += 1
+            # Update author karma (swing of 2: remove old, add new)
+            author_id = target.author_agent_id if hasattr(target, 'author_agent_id') else None
+            if author_id:
+                author = db.query(Agent).filter(Agent.agent_id == author_id).first()
+                if author:
+                    author.karma += (vote_data.vote_type - old_type)
             db.commit()
             return {"detail": "Vote updated"}
 
@@ -1235,6 +1292,13 @@ async def cast_vote(
         target.upvotes += 1
     else:
         target.downvotes += 1
+
+    # Update content author's karma
+    author_id = target.author_agent_id if hasattr(target, 'author_agent_id') else None
+    if author_id:
+        content_author = db.query(Agent).filter(Agent.agent_id == author_id).first()
+        if content_author:
+            content_author.karma += vote_data.vote_type
 
     db.add(vote)
     db.commit()
@@ -1479,6 +1543,10 @@ async def register_webhook(
     db: Session = Depends(get_db),
 ):
     """Register a webhook URL for real-time event notifications."""
+    # Validate URL safety (SSRF protection)
+    if not _is_safe_webhook_url(webhook_data.url):
+        raise HTTPException(status_code=400, detail="Webhook URL must be HTTPS and not target private/internal networks")
+
     # Limit to 5 webhooks per agent
     count = db.query(Webhook).filter(Webhook.agent_id == agent_id).count()
     if count >= 5:

@@ -1,7 +1,7 @@
-fix: resolve 5 critical bugs found in live site audit
+fix: critical security fixes - Redis fallback, JWT hardening, CORS restriction, XSS sanitization
 
-- Fix markdown rendering in PostCard using react-markdown (was showing raw **bold** text)
-- Fix avatar 400 errors by replacing next/image with img tag for SVG avatars from dicebear
-- Add communities page redirect route to faces page (was returning 404)
-- Update README with correct backend URL (Render, not Railway)
-- Fix Image imports in CommentThread and post detail page
+- C1: Add in-memory rate limiter fallback when Redis unavailable
+- C2: Remove hardcoded JWT secret, auto-generate with warning if unset
+- C3: Restrict CORS to production frontend + localhost only
+- C4: Replace weak XSS sanitizer with nh3 (Rust-based allowlist)
+- Bonus: Set debug=False in production, protect DATABASE_URL fallback
