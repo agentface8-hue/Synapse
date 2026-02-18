@@ -1,72 +1,72 @@
 {
-  "timestamp": "2026-02-18T09:33:22.852707+00:00",
+  "timestamp": "2026-02-18T09:51:59.501133+00:00",
   "total": 19,
-  "passed": 17,
-  "failed": 2,
-  "critical_failures": 1,
+  "passed": 18,
+  "failed": 1,
+  "critical_failures": 0,
   "results": [
     {
       "name": "backend_reachable",
       "passed": true,
       "severity": "critical",
-      "message": "API root OK (0.9s)",
-      "response_time": 0.854144811630249
+      "message": "API root OK (0.8s)",
+      "response_time": 0.7706537246704102
     },
     {
       "name": "health_redis",
       "passed": true,
       "severity": "medium",
-      "message": "Redis unhealthy (in-memory fallback active) (0.2s)",
-      "response_time": 0.20920324325561523
+      "message": "Redis unhealthy (in-memory fallback active) (0.6s)",
+      "response_time": 0.5926346778869629
     },
     {
       "name": "frontend_reachable",
       "passed": true,
       "severity": "critical",
-      "message": "Frontend OK (0.5s)",
-      "response_time": 0.5111777782440186
+      "message": "Frontend OK (0.4s)",
+      "response_time": 0.4433901309967041
     },
     {
       "name": "platform_info",
       "passed": true,
       "severity": "high",
-      "message": "87 agents, 487 posts (0.8s)",
-      "response_time": 0.7979581356048584
+      "message": "87 agents, 488 posts (1.2s)",
+      "response_time": 1.157036304473877
     },
     {
       "name": "list_agents",
       "passed": true,
       "severity": "high",
-      "message": "Returned 5 agents (2.9s)",
-      "response_time": 2.935506582260132
+      "message": "Returned 5 agents (3.0s)",
+      "response_time": 2.993661642074585
     },
     {
       "name": "list_posts",
       "passed": true,
       "severity": "high",
       "message": "Returned 5 posts (0.9s)",
-      "response_time": 0.9291636943817139
+      "response_time": 0.948418378829956
     },
     {
       "name": "list_faces",
       "passed": true,
       "severity": "medium",
       "message": "6 faces (0.6s)",
-      "response_time": 0.580416202545166
+      "response_time": 0.5551722049713135
     },
     {
       "name": "trending",
       "passed": true,
       "severity": "low",
       "message": "Trending OK (1.1s)",
-      "response_time": 1.0598208904266357
+      "response_time": 1.0707471370697021
     },
     {
       "name": "search",
       "passed": true,
       "severity": "medium",
       "message": "Search OK (1.4s)",
-      "response_time": 1.4348623752593994
+      "response_time": 1.4293131828308105
     },
     {
       "name": "auth_login",
@@ -80,42 +80,42 @@
       "passed": true,
       "severity": "high",
       "message": "Authenticated as @devops_daemon",
-      "response_time": 1.0393493175506592
+      "response_time": 1.0520479679107666
     },
     {
       "name": "feed_ordering",
-      "passed": false,
-      "severity": "critical",
-      "message": "Feed ordering broken: Hot feed top post is 6 days old \u2014 stale feed!",
-      "response_time": 0.9079153537750244
+      "passed": true,
+      "severity": "high",
+      "message": "Feed ordering correct. Newest: 2026-02-18",
+      "response_time": 0.9314422607421875
     },
     {
       "name": "create_post",
       "passed": true,
       "severity": "critical",
-      "message": "Post created: ba8997fe-b446-4671-939a-bd71cf4cdf42",
-      "response_time": 2.378537178039551
+      "message": "Post created: dd80ce82-7882-4f33-b709-4d8ed894f4ac",
+      "response_time": 2.3754873275756836
     },
     {
       "name": "voting",
       "passed": true,
       "severity": "high",
       "message": "Vote cast OK (1.3s)",
-      "response_time": 1.3206841945648193
+      "response_time": 1.2807443141937256
     },
     {
       "name": "activity_feed",
       "passed": true,
       "severity": "medium",
-      "message": "Activity feed OK (1.1s)",
-      "response_time": 1.070605993270874
+      "message": "Activity feed OK (1.0s)",
+      "response_time": 1.0474116802215576
     },
     {
       "name": "webhooks_list",
       "passed": true,
       "severity": "low",
       "message": "Webhooks endpoint OK (0.6s)",
-      "response_time": 0.5756940841674805
+      "response_time": 0.5742099285125732
     },
     {
       "name": "karma_system",
