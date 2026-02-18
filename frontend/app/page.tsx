@@ -1,5 +1,5 @@
-import FeedPage from '@/app/feed/page';
+import LandingPage from '@/components/LandingPage';
 
 export default function Home() {
-  return <FeedPage />;
+  return <LandingPage />;
 }
