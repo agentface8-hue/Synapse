@@ -18,7 +18,17 @@ from passlib.context import CryptContext
 # CONFIGURATION
 # ============================================
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "CHANGE_THIS_IN_PRODUCTION_USE_OPENSSL_RAND_HEX_32")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    # In development, auto-generate a key (won't persist across restarts)
+    import warnings
+    SECRET_KEY = secrets.token_hex(32)
+    warnings.warn(
+        "⚠️ JWT_SECRET_KEY not set! Using auto-generated key. "
+        "Set JWT_SECRET_KEY environment variable for production!",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
@@ -178,32 +188,48 @@ def get_current_agent_id(
 
 def sanitize_markdown(content: str) -> str:
     """
-    Sanitize markdown content to prevent XSS and code injection.
-    
-    Note: This is a basic implementation. In production, use a library
-    like bleach or markdown-it with a strict whitelist.
-    
-    Args:
-        content: Raw markdown content
-        
-    Returns:
-        Sanitized markdown
+    Sanitize markdown/HTML content to prevent XSS and code injection.
+    Uses nh3 (Rust-based, fast) for robust sanitization with a strict allowlist.
+    Falls back to aggressive regex stripping if nh3 is unavailable.
     """
-    # Remove script tags
-    content = content.replace("<script>", "").replace("</script>", "")
-    
-    # Remove event handlers
-    dangerous_patterns = [
-        "onerror=", "onload=", "onclick=", "onmouseover=",
-        "javascript:", "data:text/html"
-    ]
-    for pattern in dangerous_patterns:
-        content = content.replace(pattern, "")
-    
-    # Limit length
+    # Limit length first
     if len(content) > 50000:  # 50KB max
         content = content[:50000]
-    
+
+    try:
+        import nh3
+        # Allow only safe markdown-rendered HTML tags
+        content = nh3.clean(
+            content,
+            tags={
+                "p", "br", "strong", "em", "b", "i", "u", "s",
+                "h1", "h2", "h3", "h4", "h5", "h6",
+                "ul", "ol", "li",
+                "blockquote", "code", "pre",
+                "a", "img",
+                "table", "thead", "tbody", "tr", "th", "td",
+                "hr", "del", "sup", "sub",
+            },
+            attributes={
+                "a": {"href", "title"},
+                "img": {"src", "alt", "title", "width", "height"},
+            },
+            url_schemes={"http", "https", "mailto"},
+            link_rel="noopener noreferrer nofollow",
+            strip_comments=True,
+        )
+    except ImportError:
+        # Fallback: aggressive HTML stripping if nh3 not installed
+        import re
+        # Remove ALL HTML tags
+        content = re.sub(r'<[^>]+>', '', content)
+        # Remove common XSS vectors even in encoded form
+        content = re.sub(r'(?i)javascript\s*:', '', content)
+        content = re.sub(r'(?i)data\s*:\s*text/html', '', content)
+        content = re.sub(r'(?i)on\w+\s*=', '', content)
+        # Remove HTML entities that could form dangerous content
+        content = re.sub(r'&#x?[0-9a-fA-F]+;?', '', content)
+
     return content.strip()
 
 
@@ -255,37 +281,61 @@ class RateLimitExceeded(HTTPException):
         )
 
 
+# In-memory rate limit store (fallback when Redis is unavailable)
+import time as _time
+_memory_rate_limits: dict = {}  # key -> (count, window_start)
+_memory_rate_lock = __import__("threading").Lock()
+
+
+def _cleanup_memory_rate_limits():
+    """Remove expired entries from in-memory rate limit store."""
+    now = _time.time()
+    expired = [k for k, (_, start, window) in _memory_rate_limits.items() if now - start > window]
+    for k in expired:
+        del _memory_rate_limits[k]
+
+
 def check_rate_limit(redis_client, agent_id: str, limit: int = 100, window: int = 3600):
     """
     Check if an agent has exceeded their rate limit.
-    
-    Args:
-        redis_client: Redis connection
-        agent_id: The agent's UUID
-        limit: Maximum requests allowed (default: 100)
-        window: Time window in seconds (default: 3600 = 1 hour)
-        
-    Raises:
-        RateLimitExceeded: If the agent has exceeded their limit
+    Uses Redis if available, falls back to in-memory tracking.
     """
+    if redis_client is not None:
+        try:
+            key = f"rate_limit:{agent_id}"
+            current = redis_client.get(key)
+            if current is None:
+                redis_client.setex(key, window, 1)
+            else:
+                current_count = int(current)
+                if current_count >= limit:
+                    raise RateLimitExceeded()
+                redis_client.incr(key)
+            return
+        except RateLimitExceeded:
+            raise
+        except Exception:
+            pass  # Redis failed, fall through to in-memory
+
+    # In-memory fallback
     key = f"rate_limit:{agent_id}"
-    
-    try:
-        current = redis_client.get(key)
-        if current is None:
-            # First request in this window
-            redis_client.setex(key, window, 1)
-        else:
-            current_count = int(current)
-            if current_count >= limit:
+    now = _time.time()
+    with _memory_rate_lock:
+        # Periodic cleanup (every 100 checks)
+        if len(_memory_rate_limits) > 100:
+            _cleanup_memory_rate_limits()
+
+        if key in _memory_rate_limits:
+            count, window_start, win = _memory_rate_limits[key]
+            if now - window_start > win:
+                # Window expired, reset
+                _memory_rate_limits[key] = (1, now, window)
+            elif count >= limit:
                 raise RateLimitExceeded()
-            redis_client.incr(key)
-    except RateLimitExceeded:
-        raise
-    except Exception as e:
-        # If Redis is down, log the error but don't block the request
-        # print(f"Rate limit check failed: {e}")
-        pass
+            else:
+                _memory_rate_limits[key] = (count + 1, window_start, win)
+        else:
+            _memory_rate_limits[key] = (1, now, window)
 
 
 # ============================================

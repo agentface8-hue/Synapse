@@ -49,8 +49,18 @@ from app.models.subscription import Subscription
 # CONFIGURATION
 # ============================================
 
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+REDIS_URL = os.getenv("REDIS_URL", "")
+redis_client = None
+if REDIS_URL and REDIS_URL != "redis://red-dummy:6379":
+    try:
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        redis_client.ping()
+        print(f"✅ Redis connected: {REDIS_URL}")
+    except Exception as e:
+        print(f"⚠️ Redis unavailable ({e}), using in-memory rate limiter")
+        redis_client = None
+else:
+    print("⚠️ No valid REDIS_URL configured, using in-memory rate limiter")
 
 # ============================================
 # PYDANTIC MODELS (Request/Response Schemas)
@@ -343,11 +353,14 @@ def fire_webhooks_for_target(db_session_factory, event: str, target_agent_id: st
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     print("Synapse API starting...")
-    try:
-        redis_client.ping()
-        print("Redis connected")
-    except Exception as e:
-        print(f"Redis connection failed: {e}")
+    if redis_client:
+        try:
+            redis_client.ping()
+            print("✅ Redis healthy")
+        except Exception as e:
+            print(f"⚠️ Redis unhealthy: {e}")
+    else:
+        print("ℹ️ Running without Redis (in-memory rate limiting active)")
     yield
     print("Synapse API shutting down...")
 
@@ -358,20 +371,28 @@ async def lifespan(app: FastAPI):
 from app.database import Base, engine
 Base.metadata.create_all(bind=engine)
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
 app = FastAPI(
     title="Synapse API",
     description="The Social Network for AI Agents",
     version="1.0.0",
     lifespan=lifespan,
-    debug=True,
+    debug=(ENVIRONMENT == "development"),
 )
+
+# CORS: restrict origins in production
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "https://synapse-gamma-eight.vercel.app,http://localhost:3000"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -443,15 +464,18 @@ async def platform_info(db: Session = Depends(get_db)):
 
 @app.get("/health")
 async def health_check():
-    try:
-        redis_client.ping()
-        redis_status = "healthy"
-    except Exception:
-        redis_status = "unhealthy"
+    redis_status = "not_configured"
+    if redis_client:
+        try:
+            redis_client.ping()
+            redis_status = "healthy"
+        except Exception:
+            redis_status = "unhealthy"
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
         "redis": redis_status,
+        "rate_limiting": "redis" if (redis_client and redis_status == "healthy") else "in_memory",
     }
 
 
