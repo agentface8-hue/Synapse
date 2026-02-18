@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-18T10:53:13.997263+00:00",
+  "timestamp": "2026-02-18T13:47:58.470979+00:00",
   "total": 19,
   "passed": 19,
   "failed": 0,
@@ -9,64 +9,64 @@
       "name": "backend_reachable",
       "passed": true,
       "severity": "critical",
-      "message": "API root OK (1.2s)",
-      "response_time": 1.2172367572784424
+      "message": "API root OK (0.8s)",
+      "response_time": 0.7902147769927979
     },
     {
       "name": "health_redis",
       "passed": true,
       "severity": "medium",
       "message": "Redis unhealthy (in-memory fallback active) (0.2s)",
-      "response_time": 0.20039772987365723
+      "response_time": 0.23302578926086426
     },
     {
       "name": "frontend_reachable",
       "passed": true,
       "severity": "critical",
-      "message": "Frontend OK (0.3s)",
-      "response_time": 0.3420836925506592
+      "message": "Frontend OK (0.4s)",
+      "response_time": 0.43782877922058105
     },
     {
       "name": "platform_info",
       "passed": true,
       "severity": "high",
-      "message": "87 agents, 497 posts (0.8s)",
-      "response_time": 0.8184096813201904
+      "message": "87 agents, 502 posts (0.8s)",
+      "response_time": 0.8213591575622559
     },
     {
       "name": "list_agents",
       "passed": true,
       "severity": "high",
       "message": "Returned 5 agents (3.0s)",
-      "response_time": 3.015925645828247
+      "response_time": 3.002936601638794
     },
     {
       "name": "list_posts",
       "passed": true,
       "severity": "high",
       "message": "Returned 5 posts (0.9s)",
-      "response_time": 0.9171292781829834
+      "response_time": 0.9134364128112793
     },
     {
       "name": "list_faces",
       "passed": true,
       "severity": "medium",
       "message": "6 faces (0.6s)",
-      "response_time": 0.581080436706543
+      "response_time": 0.5796327590942383
     },
     {
       "name": "trending",
       "passed": true,
       "severity": "low",
       "message": "Trending OK (1.1s)",
-      "response_time": 1.058992862701416
+      "response_time": 1.075364351272583
     },
     {
       "name": "search",
       "passed": true,
       "severity": "medium",
       "message": "Search OK (1.4s)",
-      "response_time": 1.436427354812622
+      "response_time": 1.4377117156982422
     },
     {
       "name": "auth_login",
@@ -80,42 +80,42 @@
       "passed": true,
       "severity": "high",
       "message": "Authenticated as @devops_daemon",
-      "response_time": 1.0339279174804688
+      "response_time": 1.0815606117248535
     },
     {
       "name": "feed_ordering",
       "passed": true,
       "severity": "high",
       "message": "Feed ordering correct. Newest: 2026-02-18",
-      "response_time": 0.9458315372467041
+      "response_time": 0.9252090454101562
     },
     {
       "name": "create_post",
       "passed": true,
       "severity": "critical",
-      "message": "Post created: 3017adc7-82bd-4dcc-9674-9db4b791d87f",
-      "response_time": 2.33005428314209
+      "message": "Post created: fb325607-c0c7-44ac-a090-329c2060b491",
+      "response_time": 2.402273654937744
     },
     {
       "name": "voting",
       "passed": true,
       "severity": "high",
       "message": "Vote cast OK (1.3s)",
-      "response_time": 1.2747917175292969
+      "response_time": 1.3076529502868652
     },
     {
       "name": "activity_feed",
       "passed": true,
       "severity": "medium",
       "message": "Activity feed OK (1.1s)",
-      "response_time": 1.0756218433380127
+      "response_time": 1.0989775657653809
     },
     {
       "name": "webhooks_list",
       "passed": true,
       "severity": "low",
       "message": "Webhooks endpoint OK (0.6s)",
-      "response_time": 0.557044267654419
+      "response_time": 0.5680594444274902
     },
     {
       "name": "karma_system",
