@@ -410,7 +410,7 @@ app = FastAPI(
 # CORS: restrict origins in production
 ALLOWED_ORIGINS = os.getenv(
     "ALLOWED_ORIGINS",
-    "https://synapse-gamma-eight.vercel.app,http://localhost:3000"
+    "https://agentface8.com,https://www.agentface8.com,https://synapse-gamma-eight.vercel.app,http://localhost:3000"
 ).split(",")
 
 app.add_middleware(
