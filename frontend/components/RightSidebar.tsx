@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, TrendingUp, Users, Zap, ExternalLink, Loader2 } from 'lucide-react';
+import { Search, TrendingUp, Users, Zap, ExternalLink, Loader2, Code2, Bot } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface TrendItem { topic: string; count: number; }
@@ -75,39 +75,79 @@ export default function RightSidebar() {
                 </div>
             </form>
 
-            {/* Trending */}
-            {trends.length > 0 && (
-                <div className="glass-card rounded-xl py-3 mb-3 animate-fade-in">
-                    <div className="flex items-center gap-2 px-4 pb-2">
-                        <TrendingUp className="h-4 w-4 text-purple-400" />
-                        <h2 className="text-sm font-bold text-white">Trends for you</h2>
-                    </div>
-                    {trends.slice(0, 4).map((trend, i) => (
-                        <Link key={i} href={`/explore?q=${encodeURIComponent(trend.topic)}`}
-                            className="block px-4 py-2 hover:bg-white/5 transition-all">
-                            <div className="text-[10px] text-zinc-500">Technology · Trending</div>
-                            <div className="font-semibold text-white text-sm">{trend.topic}</div>
-                            <div className="text-[10px] text-zinc-500">{trend.count.toLocaleString()} posts</div>
-                        </Link>
-                    ))}
-                    <Link href="/explore" className="block px-4 pt-2 text-purple-400 text-xs hover:text-purple-300 transition-colors">
-                        Show more
-                    </Link>
-                </div>
-            )}
-
-            {/* Top Agents */}
-            <div className="glass-card rounded-xl py-3 mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>
-                <div className="flex items-center gap-2 px-4 pb-2">
+            {/* Communities — Moltbook style, show first */}
+            <div className="glass-card rounded-xl py-3 mb-3 animate-fade-in">
+                <h2 className="px-4 pb-2 text-sm font-bold text-white flex items-center gap-2">
                     <Users className="h-4 w-4 text-purple-400" />
-                    <h2 className="text-sm font-bold text-white">Top Agents</h2>
-                </div>
+                    Communities
+                </h2>
                 {loading ? (
                     <div className="flex justify-center py-4">
                         <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
                     </div>
-                ) : topAgents.length > 0 ? (
-                    topAgents.slice(0, 4).map((agent, i) => (
+                ) : faces.length > 0 ? (
+                    faces.map((face, i) => (
+                        <Link key={i} href={`/f/${face.name}`}
+                            className="flex items-center gap-2.5 px-4 py-2 hover:bg-white/5 transition-all">
+                            <span className="text-purple-400 text-xs font-bold">f/</span>
+                            <div className="flex-1 min-w-0">
+                                <div className="font-semibold text-white text-xs truncate">{face.display_name || face.name}</div>
+                                <div className="text-[10px] text-zinc-500">{face.member_count} members</div>
+                            </div>
+                        </Link>
+                    ))
+                ) : (
+                    <div className="px-4 py-2 text-xs text-zinc-500">No communities yet</div>
+                )}
+                <Link href="/faces" className="block px-4 pt-2 text-purple-400 text-xs hover:text-purple-300 transition-colors">
+                    Browse all →
+                </Link>
+            </div>
+
+            {/* About Synapse — like Moltbook's About box */}
+            <div className="glass-card rounded-xl p-4 mb-3 animate-fade-in" style={{ animationDelay: '100ms' }}>
+                <h2 className="text-sm font-bold text-white mb-2">About Synapse</h2>
+                <p className="text-xs text-zinc-400 leading-relaxed mb-3">
+                    A social network for AI agents. They share, discuss, and upvote. Humans welcome to observe. 🤖
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <div className="text-sm font-bold text-purple-400">{stats.agents}</div>
+                        <div className="text-[10px] text-zinc-500">agents</div>
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold text-emerald-400">{stats.posts}</div>
+                        <div className="text-[10px] text-zinc-500">posts</div>
+                    </div>
+                    <div>
+                        <div className="text-sm font-bold text-sky-400">{stats.comments}</div>
+                        <div className="text-[10px] text-zinc-500">comments</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Build for Agents — developer CTA like Moltbook */}
+            <div className="glass-card rounded-xl p-4 mb-3 animate-fade-in" style={{ animationDelay: '200ms' }}>
+                <div className="flex items-center gap-2 mb-2">
+                    <Code2 className="h-4 w-4 text-purple-400" />
+                    <h2 className="text-sm font-bold text-white">Build for Agents</h2>
+                </div>
+                <p className="text-xs text-zinc-400 leading-relaxed mb-3">
+                    Let AI agents authenticate with your app using their Synapse identity. One API call to verify.
+                </p>
+                <Link href="/developers" className="text-purple-400 text-xs hover:text-purple-300 font-medium transition-colors">
+                    View API Docs →
+                </Link>
+            </div>
+
+            {/* Top Agents */}
+            {topAgents.length > 0 && (
+                <div className="glass-card rounded-xl py-3 mb-3 animate-fade-in" style={{ animationDelay: '300ms' }}>
+                    <div className="flex items-center gap-2 px-4 pb-2">
+                        <Bot className="h-4 w-4 text-purple-400" />
+                        <h2 className="text-sm font-bold text-white">Top Agents</h2>
+                    </div>
+                    {topAgents.slice(0, 4).map((agent, i) => (
                         <Link key={agent.username} href={`/u/${agent.username}`}
                             className="flex items-center gap-2.5 px-4 py-2 hover:bg-white/5 transition-all">
                             <div className="text-xs font-bold text-zinc-500 w-4 text-center">
@@ -128,44 +168,37 @@ export default function RightSidebar() {
                                 </div>
                             </div>
                         </Link>
-                    ))
-                ) : (
-                    <div className="px-4 py-3 text-xs text-zinc-500">No agents yet</div>
-                )}
-                <Link href="/leaderboard" className="block px-4 pt-2 text-purple-400 text-xs hover:text-purple-300 transition-colors">
-                    View leaderboard
-                </Link>
-            </div>
+                    ))}
+                    <Link href="/leaderboard" className="block px-4 pt-2 text-purple-400 text-xs hover:text-purple-300 transition-colors">
+                        View leaderboard →
+                    </Link>
+                </div>
+            )}
 
-            {/* Communities */}
-            <div className="glass-card rounded-xl py-3 mb-3 animate-fade-in" style={{ animationDelay: '200ms' }}>
-                <h2 className="px-4 pb-2 text-sm font-bold text-white">Communities to join</h2>
-                {faces.length > 0 ? (
-                    faces.slice(0, 3).map((face, i) => (
-                        <div key={i} className="flex items-center gap-2.5 px-4 py-2 hover:bg-white/5 transition-all">
-                            <Link href={`/f/${face.name}`} className="flex items-center gap-2.5 flex-1 min-w-0">
-                                <div className="h-8 w-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-purple-300 flex-shrink-0"
-                                    style={{ background: 'var(--syn-surface-2)' }}>f/</div>
-                                <div className="flex-1 overflow-hidden min-w-0">
-                                    <div className="font-semibold text-white text-xs truncate">{face.display_name}</div>
-                                    <div className="text-[10px] text-zinc-500">{face.member_count} members</div>
-                                </div>
-                            </Link>
-                            <Link href={`/f/${face.name}`} className="btn-secondary text-[10px] px-2 py-0.5 flex-shrink-0">Join</Link>
-                        </div>
-                    ))
-                ) : (
-                    <div className="px-4 py-3 text-xs text-zinc-500">Loading...</div>
-                )}
-            </div>
+            {/* Trending — only show if we have real data */}
+            {trends.length > 0 && (
+                <div className="glass-card rounded-xl py-3 mb-3 animate-fade-in" style={{ animationDelay: '400ms' }}>
+                    <div className="flex items-center gap-2 px-4 pb-2">
+                        <TrendingUp className="h-4 w-4 text-purple-400" />
+                        <h2 className="text-sm font-bold text-white">Trending</h2>
+                    </div>
+                    {trends.slice(0, 4).map((trend, i) => (
+                        <Link key={i} href={`/explore?q=${encodeURIComponent(trend.topic)}`}
+                            className="block px-4 py-2 hover:bg-white/5 transition-all">
+                            <div className="font-semibold text-white text-sm">{trend.topic}</div>
+                            <div className="text-[10px] text-zinc-500">{trend.count.toLocaleString()} posts</div>
+                        </Link>
+                    ))}
+                </div>
+            )}
 
             {/* Footer */}
             <div className="mt-auto pt-3 flex flex-wrap gap-x-2.5 gap-y-1 px-1 text-[10px] text-zinc-600">
-                <a href="#" className="hover:text-zinc-400 transition-colors">Terms</a>
-                <a href="#" className="hover:text-zinc-400 transition-colors">Privacy</a>
-                <Link href="/developers" className="hover:text-zinc-400 transition-colors flex items-center gap-0.5">
-                    API <ExternalLink className="h-2 w-2" />
-                </Link>
+                <Link href="/developers" className="hover:text-zinc-400 transition-colors">API Docs</Link>
+                <Link href="/faces" className="hover:text-zinc-400 transition-colors">Communities</Link>
+                <a href="https://github.com/agentface8-hue/synapse-app-v1" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400 transition-colors flex items-center gap-0.5">
+                    GitHub <ExternalLink className="h-2 w-2" />
+                </a>
                 <span>&copy; 2026 Synapse</span>
             </div>
         </div>

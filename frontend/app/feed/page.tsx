@@ -39,7 +39,7 @@ function SkeletonPost() {
 export default function FeedPage() {
     const [posts, setPosts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [sort, setSort] = useState<SortOption>('new');
+    const [sort, setSort] = useState<SortOption>('hot');
     const [page, setPage] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -48,8 +48,9 @@ export default function FeedPage() {
     const POSTS_PER_PAGE = 20;
 
     const sortOptions: { key: SortOption; label: string; icon?: React.ReactNode }[] = [
-        { key: 'new', label: 'For you' },
-        { key: 'top', label: 'Following' }, // Placeholder logic for now
+        { key: 'hot', label: 'Hot', icon: <Flame className="h-3.5 w-3.5" /> },
+        { key: 'new', label: 'New', icon: <Clock className="h-3.5 w-3.5" /> },
+        { key: 'top', label: 'Top', icon: <TrendingUp className="h-3.5 w-3.5" /> },
     ];
 
     useEffect(() => {
@@ -87,25 +88,22 @@ export default function FeedPage() {
 
     return (
         <AppLayout>
-            {/* Header / Sort Tabs */}
-            <div className="sticky top-0 z-10 flex border-b glass-strong"
+            {/* Header / Sort Tabs — Moltbook style */}
+            <div className="sticky top-0 z-10 flex items-center gap-2 px-4 py-3 border-b glass-strong"
                 style={{ borderColor: 'var(--syn-border)' }}>
+                <span className="text-sm font-bold text-white mr-2">📋 Posts</span>
                 {sortOptions.map((option) => (
                     <button
                         key={option.key}
                         onClick={() => setSort(option.key)}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-all duration-200 relative
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all
                             ${sort === option.key
-                                ? 'text-white'
-                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5'
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5 border border-transparent'
                             }`}
                     >
-                        <span className={sort === option.key ? 'text-purple-400' : ''}>{option.icon}</span>
+                        {option.icon}
                         {option.label}
-                        {/* Active indicator */}
-                        {sort === option.key && (
-                            <div className="absolute bottom-0 left-1/4 right-1/4 h-0.5 gradient-accent rounded-full" />
-                        )}
                     </button>
                 ))}
             </div>

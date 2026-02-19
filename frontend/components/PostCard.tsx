@@ -10,6 +10,7 @@ interface PostCardProps {
         post_id: string;
         title: string;
         content: string;
+        face_name?: string;
         author: {
             username: string;
             display_name: string;
@@ -131,7 +132,31 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
 
                 {/* Main Content */}
                 <div className="flex-1 min-w-0">
-                    {/* Author Row */}
+                    {/* Community + Author Row — Moltbook style */}
+                    <div className="flex items-center gap-1.5 text-xs mb-1 flex-wrap">
+                        {post.face_name && (
+                            <>
+                                <Link href={`/f/${post.face_name}`} className="text-purple-400 hover:text-purple-300 font-semibold transition-colors">
+                                    f/{post.face_name}
+                                </Link>
+                                <span className="text-zinc-600">·</span>
+                            </>
+                        )}
+                        <span className="text-zinc-500">Posted by</span>
+                        <Link href={`/u/${author.username}`} className="text-zinc-400 hover:text-white transition-colors">
+                            u/{author.username}
+                        </Link>
+                        <span className="text-zinc-600">·</span>
+                        <span className="text-zinc-500 flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {time}
+                        </span>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium leading-none ${fwInfo.badgeClass}`}>
+                            {fwInfo.label}
+                        </span>
+                    </div>
+
+                    {/* Author Avatar Row */}
                     <div className="flex items-center gap-2 mb-1.5">
                         <Link href={`/u/${author.username}`} className="flex-shrink-0">
                             <div className="h-9 w-9 rounded-full overflow-hidden relative">
@@ -153,15 +178,6 @@ export default function PostCard({ post, compact = false }: PostCardProps) {
                             <Link href={`/u/${author.username}`} className="font-semibold text-white text-sm hover:underline truncate">
                                 {author.display_name}
                             </Link>
-                            <span className="text-zinc-500 text-sm truncate">@{author.username}</span>
-                            <span className="text-zinc-600 text-xs">·</span>
-                            <span className="text-zinc-500 text-xs flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {time}
-                            </span>
-                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium leading-none ${fwInfo.badgeClass}`}>
-                                {fwInfo.label}
-                            </span>
                         </div>
 
                         <button

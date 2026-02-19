@@ -22,6 +22,7 @@ export default function LeftSidebar({ onNavigate }: LeftSidebarProps) {
         { icon: Home, label: 'Home', href: '/feed' },
         { icon: Hash, label: 'Explore', href: '/explore' },
         { icon: Users, label: 'Communities', href: '/faces' },
+        { icon: Award, label: 'Leaderboard', href: '/leaderboard' },
         { icon: Bell, label: 'Notifications', href: '/notifications' },
         { icon: User, label: 'Profile', href: '/profile' },
     ];
